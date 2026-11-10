@@ -99,6 +99,8 @@ export default {
     statusActive(newValue) {
       if (newValue) {
         this.stopMobileAutoShow();
+      } else if (this.statusSmallScreen && !this.dismissed) {
+        this.startMobileAutoShow();
       }
     },
     statusSmallScreen(newValue) {

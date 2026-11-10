@@ -51,3 +51,5 @@ npm run build:widget
 Contract tests cover secret exclusion, configuration validation, production mock restrictions, authorization, origin checks, token responses, provisioning and Turnstile failures. Real-service deployment still requires validating your backend contract and permitted browser/Turnstile origins.
 
 Public source availability does not establish an open-source license; the existing Vue package retains its license metadata pending the owner's licensing decision.
+
+Initial floating nudges are derived from the first Input Suggestions group (up to three). Mobile nudges use the Vue widget’s existing ten-second cycle while chat is closed, resume after closing chat, and remain dismissed after the visitor closes them. Backend follow-up suggestions take precedence during an existing conversation.

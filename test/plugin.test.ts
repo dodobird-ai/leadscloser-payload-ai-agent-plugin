@@ -102,3 +102,12 @@ test('negative Cloudflare verification stays negative', async () => {
   const response = await endpoint('proxy')(req({ method: 'POST', url: 'https://site.example/api/v1/chatbot/proxy?action=verify_cf_turnstile', json: async () => ({ 'cf-turnstile-response': 'challenge' }) }))
   expect(await response.json()).toEqual({ success: false, 'error-codes': ['timeout-or-duplicate'] })
 })
+
+test('initial suggestions also supply bounded, localized mobile nudges', () => {
+  const initial = [1, 2, 3, 4].map(id => ({ id, group_id: 1, text: { en: `Prompt ${id}`, fr: `Question ${id}` } }))
+  const followup = { id: 5, group_id: 2, text: { en: 'Follow-up' } }
+  const config = publicSettings({ ...settings, inputSuggestions: [...initial, followup] })
+  expect(config.inputSuggestionsJSON).toHaveLength(5)
+  expect(config.floatingQuestions).toEqual(initial.slice(0, 3))
+  expect(publicSettings({ ...settings, inputSuggestions: null }).floatingQuestions).toEqual([])
+})

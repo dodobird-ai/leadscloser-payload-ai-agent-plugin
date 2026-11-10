@@ -32,6 +32,9 @@ export function configurationProblem(settings: Partial<ChatbotSetting>): string 
 
 export function publicSettings(settings: ChatbotSetting) {
   if (!settings.enabled || configurationProblem(settings)) return { enabled: false }
+  const parsedSuggestions = suggestionsSchema.safeParse(settings.inputSuggestions ?? [])
+  const inputSuggestions = parsedSuggestions.success ? parsedSuggestions.data : []
+  const initialGroup = inputSuggestions[0]?.group_id
   return {
     enabled: true,
     campaignId: settings.campaignId,
@@ -46,7 +49,8 @@ export function publicSettings(settings: ChatbotSetting) {
     proxyBaseURL: '/api/v1/chatbot/proxy',
     primaryColor: settings.primaryColor,
     featuredImage: settings.featuredImage,
-    inputSuggestionsJSON: settings.inputSuggestions || [],
+    inputSuggestionsJSON: inputSuggestions,
+    floatingQuestions: inputSuggestions.filter(suggestion => suggestion.group_id === initialGroup).slice(0, 3),
   }
 }
 
