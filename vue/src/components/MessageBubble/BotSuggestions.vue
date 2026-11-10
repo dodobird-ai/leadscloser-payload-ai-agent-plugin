@@ -29,20 +29,24 @@ div(v-if="sortedOptions.length > 0")
           .action-buttons(v-if="!botParameters.preview")
             //- IconThumbUp.like-btn(@click="toggleLike(option.id)" :class="{ 'liked': isLiked(option.id) }")
             IconThumbDown.unlike-btn(@click.stop="removeItem(index, option.id)")
-        .card-details
-          .card-text
-            b {{option.name}}
-          //- CardDescription(:content="botHelper.convertMarkdownToHtml(option.ai_comment || option.description)")
-          .card-price(v-if="option.price")
-            span
-              p(v-if="option.currency") {{ option.currency }} {{ formatPrice(option.price) }}
-              p(v-else) Rs {{ formatPrice(option.price) }}
-              p.small *{{ $t("text.publicPrice") }}
-          .bottom.mx-0.mt-3.mb-2
-            ElButton(round :color="botParameters.primaryColor" @click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
-              ElIcon
-                ViewIcon
-              | &nbsp;{{  $t("btn.viewItem") }}
+        .card-details.property-card__body
+          .property-card__tags
+            span.property-card__tag(v-if="option.category") {{ option.category }}
+            span.property-card__tag(v-if="option.description_metadata?.sources?.wp_crm?.address?.address_city") {{ option.description_metadata.sources.wp_crm.address.address_city }}
+          h3.card-text.property-card__name(:title="option.name") {{option.name}}
+          .property-card__specs(v-if="option.description_metadata?.sources?.wp_crm?.specifications")
+            span(v-if="option.description_metadata.sources.wp_crm.specifications.bedrooms") {{ option.description_metadata.sources.wp_crm.specifications.bedrooms }} {{ $t("text.bedrooms") }}
+            span(v-if="option.description_metadata.sources.wp_crm.specifications.bathrooms") {{ option.description_metadata.sources.wp_crm.specifications.bathrooms }} {{ $t("text.bathrooms") }}
+            span(v-if="option.description_metadata.sources.wp_crm.specifications.size_in_sqmt") {{ option.description_metadata.sources.wp_crm.specifications.size_in_sqmt }} m²
+          .property-card__divider
+          .property-card__footer
+            .card-price(v-if="option.price")
+              span.property-card__price-label {{ $t("text.publicPrice") }}
+              p.property-card__price {{ option.currency || 'MUR' }} {{ formatPrice(option.price) }}
+            ElButton.property-card__cta(:color="botParameters.primaryColor" @click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
+              | {{ $t("btn.viewItem") }}
+              svg(width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true")
+                path(d="M5 12h14M13 6l6 6-6 6")
 
 //- Global/batch action buttons - displayed independently of items
 div.d-flex.flex-column.row-gap-3.animate-actions(v-if="message.actions && Object.keys(message.actions).length > 0")
