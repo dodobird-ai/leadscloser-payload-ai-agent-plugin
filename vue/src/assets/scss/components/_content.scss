@@ -1,0 +1,505 @@
+.board-content {
+  flex-grow: 1;
+  overflow: hidden scroll;
+}
+
+.board-content__bubbles {
+  min-height: 100%;
+  padding: 2% 2% 2%;
+}
+
+// Message Bubble Components
+// TODO: split CSS into single component CSS files
+.bubble-btn {
+  display: flex;
+  position: relative;
+
+  &.bubble-btn--bot {
+    flex-direction: column;
+  }
+}
+
+.bubble-btn__icon-container {
+  display: flex;
+  align-items: flex-start;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+
+  .bubble-btn--bot & {
+    margin-right: 0;
+    margin-bottom: 17px;
+    justify-content: flex-start;
+  }
+}
+
+.bubble-btn__chatbot-icon {
+  width: 37px;
+  height: 37px;
+  color: #666;
+  --margin-top: 0.75rem;
+}
+
+.bubble-btn__content-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  row-gap: 0.1rem;
+}
+
+.bubble-btn__time {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 2px 5px;
+  margin-top: -5px;
+  border-radius: 5px;
+  font-size: 62.5%;
+  color: $bubble-time-color;
+  background-color: $bubble-time-bg;
+  transform: translate(0, -100%);
+  opacity: 0;
+  transition: opacity linear 0.1s 1s;
+
+  .bubble-btn--user & {
+    display: block;
+  }
+}
+
+.bubble-btn-component {
+  &:hover {
+    & ~ .bubble-btn__time {
+      opacity: 0.8;
+    }
+  }
+}
+
+@include media-breakpoint-down(lg) {
+  .bubble-btn-component {
+    font-size: 90%;
+  }
+}
+
+.bubble-btn {
+  padding-bottom: 2.5%;
+
+  &.bubble-btn--user {
+    margin-top: 1rem;
+
+    margin-bottom: 0.5rem;
+
+    .bubble-btn-component--single-text {
+      display: flex;
+      justify-content: flex-end;
+      padding-left: 10%;
+    }
+
+    .bubble-btn-component__text {
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  &.bubble-btn--bot {
+    background: #f0f0f0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 0.5rem;
+
+    // Add margin between consecutive bot messages
+    & + .bubble-btn--bot {
+      margin-top: 1rem;
+    }
+
+    // Add margin before user messages
+    & + .bubble-btn--user {
+      margin-top: 1.5rem;
+    }
+
+    .bubble-btn-component--single-text {
+      width: 100%;
+      padding-right: 0;
+
+      .bubble-btn-component__text {
+        line-height: 150%;
+        font-weight: 500;
+        color: #494949;
+      }
+    }
+  }
+}
+
+.bubble-btn-component__text {
+  position: relative;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-radius: 6px;
+  display: inline-block;
+  font-size: $font-size-root;
+  // line-height: 150%;
+  // font-weight: 500;
+  // color: #494949;
+}
+.board-content__bot-typing {
+  margin-left: 0.5em;
+}
+
+.bubble-btn-component__options-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mb-button-options__item {
+  flex: 0 0 auto;
+}
+
+.mb-button-options__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  margin: 0.5rem auto 0 auto;
+  padding: 0.25rem 1rem;
+  cursor: pointer;
+  outline: 0;
+  border-radius: 13px;
+  font-family: inherit;
+  text-decoration: none;
+  transition: background-color linear 0.15s, color linear 0.1s;
+
+  span {
+    position: relative;
+    z-index: 10;
+    font-weight: 400;
+    font-size: $font-size-root;
+  }
+}
+
+.mb-button-options__btn--disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+// Typing indicator container
+.bot-msg-bubble__typing-indicator-container {
+  display: flex;
+  align-items: center;
+}
+
+// Typing text
+.bubble-btn__typing-text {
+  margin-right: 0.5rem;
+  opacity: 0.5;
+}
+
+// Typing indicator
+.bot-msg-bubble__typing-indicator {
+  position: relative;
+  min-width: $typing-indicator-size * 3 + 8px;
+  opacity: 0.3;
+
+  span {
+    display: block;
+    width: $typing-indicator-size;
+    height: $typing-indicator-size;
+    margin: 0 auto;
+    border-radius: 50%;
+  }
+
+  &::before,
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    width: $typing-indicator-size;
+    height: $typing-indicator-size;
+    border-radius: 50%;
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    right: 0;
+  }
+}
+
+// Bot Suggestions
+
+.bubble-btn-component_scrollbar-wrapper {
+  height: auto;
+
+  .scrollbar-flex-content {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    --gap: 10px;
+    --padding: 0 1rem 0 1rem;
+
+    .custom-card {
+      flex: 0 0 auto;
+      min-width: 200px;
+      max-width: 200px;
+      // height: 340px;
+      margin-right: 5px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      display: flex;
+      flex-direction: column;
+
+      .el-card__body {
+        padding: 5px 20px 5px 0;
+        display: flex;
+        flex-direction: column;
+        background: transparent;
+        height: 100%;
+        justify-content: space-between;
+      }
+
+      .card-header {
+        position: relative;
+
+        .card-image {
+          width: 100%;
+          aspect-ratio: 1;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          flex-shrink: 0;
+          margin-bottom: 0.5625rem;
+          border-radius: 5px;
+        }
+
+        .action-buttons {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          display: flex;
+          gap: 8px;
+
+          .like-btn,
+          .unlike-btn {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            // padding: 2px;
+            transition: all 0.2s ease;
+
+            &:hover {
+              color: rgba(255, 255, 255, 1);
+              background: rgba(0, 0, 0, 0.4);
+              transform: scale(1.1);
+            }
+          }
+
+          .like-btn.liked {
+            color: #10b981;
+            background: rgba(255, 255, 255, 0.9);
+          }
+
+          .unlike-btn:hover {
+            color: #f87171;
+          }
+        }
+      }
+
+      .card-details {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 0 5px 5px 5px;
+
+        .card-text {
+          font-weight: 700;
+          font-size: 14px;
+          line-height: 150%;
+          color: #494949;
+          margin-bottom: 0.5rem;
+          min-height: 30px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .card-description {
+          font-weight: 100;
+          font-size: 8px;
+          line-height: 150%;
+          color: #494949;
+          margin-bottom: 0.5rem;
+          max-height: 24px;
+          overflow: hidden;
+        }
+
+        .card-description span {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 150%;
+        }
+
+        .card-price {
+          margin: 0.5rem 0;
+          text-align: center;
+
+          p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #494949;
+          }
+
+          p.small {
+            font-size: 8px;
+            font-weight: 400;
+            color: #666;
+          }
+        }
+
+        .bottom {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          width: 100%;
+          margin-top: auto;
+
+          a {
+            text-decoration: none;
+            width: 100%;
+          }
+
+          .el-button {
+            box-sizing: border-box;
+            height: 29.52px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 5px 7.15px;
+            background: #fafafa;
+            border: 0.894px solid #cccccc;
+            border-radius: 5.366px;
+            font-weight: 500;
+            font-size: 10.446px;
+            line-height: 160%;
+            color: #000000;
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: #eeeeee;
+              border-color: #999999;
+            }
+          }
+        }
+
+        @include media-breakpoint-down(lg) {
+          .card-text,
+          .card-description {
+            font-size: 90%;
+          }
+        }
+      }
+    }
+  }
+}
+// Question-style input suggestions (add this to your existing CSS)
+
+.bubble-btn-component__questions-wrapper {
+  display: flex;
+  flex-direction: column;
+  // gap: 0.75rem;
+  // margin-bottom: 1rem;
+}
+
+.mb-question-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.675rem 1rem;
+  background: transparent;
+  // border-top: 1px solid red;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.mb-question-item__text {
+  flex: 1;
+  font-size: $font-size-root;
+  font-weight: 400;
+  // color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  line-height: 1.4;
+  margin-right: 1rem;
+}
+
+.mb-question-item__arrow {
+  flex-shrink: 0;
+  font-size: 1rem;
+  // color: red;
+  // color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s ease;
+
+  // .mb-question-item:hover & {
+  //   // color: rgba(255, 255, 255, 0.9);
+  //   color: blue;
+  //   transform: translateY(-1px);
+  // }
+}
+
+// Keep existing button styles for action buttons
+.bubble-btn-component__options-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem; // Add some spacing after questions
+}
+
+// Responsive adjustments
+@include media-breakpoint-down(lg) {
+  .mb-question-item {
+    padding: 0.75rem 0.875rem;
+
+    .mb-question-item__text {
+      font-size: 90%;
+    }
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .mb-question-item {
+    padding: 0.625rem 0.75rem;
+
+    .mb-question-item__text {
+      font-size: 85%;
+      margin-right: 0.75rem;
+    }
+
+    .mb-question-item__arrow {
+      font-size: 0.875rem;
+    }
+  }
+}

@@ -1,0 +1,33 @@
+// Root
+$font-size-root: 14px;
+$z-index-root: 2147483640;
+$sidebar-width: 23vw; // ! if sidebar-width is updated, don't forget to update sidebarWidth in main.js
+$white: #fff;
+$container-bottom: .5%;
+$container-right: 1.5%;
+
+// Bubble Button
+$bubble-btn-color: $white;
+
+// Board
+$board-bg: $white;
+$board-radius: 5px;
+$board-width: 56.2vh;
+$board-height: 95vh;
+
+// Header
+$header-height: 50px;
+
+// Content, Message Bubble
+$avatar-size: 32px;
+$bubble-triangle-size: 10px;
+$bubble-time-bg: #222;
+$bubble-time-color: $white;
+$typing-indicator-size: 5px;
+
+// Action
+$action-height: 46px;
+$action-line: #e6e6e6;
+$action-input-bg: $white;
+$action-disable-bg: #ccc;
+$action-icon-color: #666;

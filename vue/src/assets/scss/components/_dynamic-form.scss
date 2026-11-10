@@ -1,0 +1,52 @@
+// TODO: fix for sidebar view
+// TODO: fix transition down of form
+
+.dynamic-form {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: $z-index-root;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  border-radius: 0 0 $board-radius $board-radius;
+  background-color: rgba(
+    0,
+    0,
+    0,
+    0.55
+  ); // always present to block interaction behind
+
+  &.active {
+    visibility: visible;
+    pointer-events: auto;
+
+    .form-popup {
+      bottom: 0;
+    }
+  }
+
+  .form-popup {
+    position: absolute;
+    bottom: -50%;
+    left: 0;
+    z-index: $z-index-root + 2;
+    border-radius: $board-radius;
+    background-color: white;
+    width: 100%;
+    padding: 15px 25px;
+    transition: bottom 0.5s ease-in-out;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .dynamic-form {
+    border-radius: 0;
+
+    .form-popup {
+      border-radius: $board-radius $board-radius 0 0;
+    }
+  }
+}

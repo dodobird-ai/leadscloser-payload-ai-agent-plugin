@@ -1,0 +1,1 @@
+export default { testEnvironment: 'node', testMatch: ['**/test/*.test.ts'], moduleNameMapper: { '^payload$': '<rootDir>/test/payload-stub.ts' }, transform: { '^.+\\.ts$': ['@swc/jest', { jsc: { parser: { syntax: 'typescript' }, target: 'es2022' } }] } }

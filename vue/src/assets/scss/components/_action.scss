@@ -1,0 +1,205 @@
+.board-action {
+  position: relative;
+  display: flex;
+  flex: none;
+  padding: 10px 15px 10px 15px;
+  border-top: 1px solid $action-line;
+}
+
+.board-action--disabled {
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 10;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.2;
+    cursor: not-allowed;
+  }
+}
+
+.board-action__wrapper {
+  display: flex;
+  width: 100%;
+  background-color: $action-input-bg;
+  gap: 8px;
+  border-radius: 20px;
+  padding: 6px;
+  align-items: center;
+}
+
+.board-action__msg-box {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.board-action__input {
+  width: 100%;
+  resize: none;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+  outline: 0;
+  font-size: 16px;
+
+  &[disabled="disabled"] {
+    pointer-events: none;
+  }
+
+  ::v-deep textarea {
+    font-size: 16px !important;
+  }
+
+  ::v-deep .el-textarea__inner {
+    border: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    font-size: 16px !important;
+    color: #333 !important;
+    resize: none !important;
+
+    &::placeholder {
+      color: #999 !important;
+    }
+
+    &:focus {
+      border: none !important;
+      box-shadow: none !important;
+    }
+  }
+}
+.board-action__disable-text {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background-color: $action-input-bg;
+  font-size: 87.5%;
+}
+
+.board-action__extra {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  outline: 0;
+  border: 0;
+  line-height: 1;
+  box-shadow: none;
+  background-color: transparent;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &--send {
+    color: white;
+    opacity: 1;
+
+    &:disabled {
+      cursor: not-allowed;
+
+      .arrow {
+        color: #9ca3af;
+      }
+    }
+
+    &:hover:not(:disabled) {
+      filter: brightness(0.85);
+      transform: scale(1.05);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    .arrow {
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1;
+      display: block;
+      margin-top: -2px;
+    }
+  }
+
+  &--new-chat {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    opacity: 1;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: #e5e7eb;
+      transform: scale(1.05);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    .plus-icon {
+      font-size: 24px;
+      font-weight: 300;
+      line-height: 1;
+      display: block;
+    }
+  }
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  fill: $action-icon-color;
+  color: $action-icon-color;
+  vertical-align: middle;
+  margin: 0 5px;
+}
+
+@include media-breakpoint-down(lg) {
+  .board-action {
+    padding: 10px 10px 10px 10px;
+  }
+
+  .action-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.board-action--typing {
+  .action-item--send {
+    opacity: 1;
+  }
+  .action-item--clear {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,58 @@
+.board-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 80px;
+  padding: 0 15px;
+  background: #ffffff;
+  border-radius: $board-radius $board-radius 0 0;
+}
+
+.bot-board.side-panel .board-header {
+  border-radius: 0;
+}
+
+.board-header__title {
+  position: absolute;
+  top: 27px;
+  font-family: 'Poppins', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 23px;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  color: #141718;
+}
+
+.board-header__menu {
+  position: absolute;
+  right: 15px;
+  top: 34px;
+  display: flex;
+  // gap: 8px;
+}
+
+.board-header__actions {
+  cursor: pointer;
+  opacity: 0.8;
+  &:hover {
+    opacity: 1;
+  }
+}
+
+@include media-breakpoint-down(md) {
+  .board-header {
+    height: 56px;
+    border-radius: 0;
+  }
+  .board-header__title {
+    top: 17px;
+    font-size: 18px;
+  }
+  .board-header__menu {
+    top: 18px;
+  }
+}

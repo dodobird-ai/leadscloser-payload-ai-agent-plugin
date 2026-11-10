@@ -1,0 +1,18 @@
+.dodo-ai-chat {
+  @import "~bootstrap/scss/bootstrap";
+
+  @import '@vueform/vueform/themes/bootstrap/scss/index.scss';
+
+  @import "variables";
+
+  @import "./common/main";
+  @import "./common/animation";
+
+  @import "./components/bot-bubble-btn";
+  @import "./components/board";
+  @import "./components/header";
+  @import "./components/content";
+  @import "./components/action";
+  @import "./components/disclaimer";
+  @import "./components/dynamic-form";
+}

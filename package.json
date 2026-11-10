@@ -1,0 +1,43 @@
+{
+  "name": "@dodobird-ai/leadscloser-payload-ai-agent-plugin",
+  "version": "0.1.0",
+  "description": "Native Payload CMS integration for the LeadsCloser Vue AI chatbot",
+  "type": "module",
+  "private": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/Chatbot.tsx",
+    "./loader": "./src/client.ts",
+    "./admin": "./src/admin.tsx"
+  },
+  "files": [
+    "src",
+    "vue",
+    "scripts",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "payload": "^3.84.1",
+    "@payloadcms/ui": "^3.84.1",
+    "next": "^15.4.11",
+    "react": "^19.0.0"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dodobird-ai/leadscloser-payload-ai-agent-plugin.git"
+  },
+  "scripts": {
+    "test": "jest --runInBand",
+    "build:widget": "node scripts/build-widget.mjs"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.41",
+    "@swc/jest": "^0.2.39",
+    "jest": "^30.4.2",
+    "typescript": "~5.7.0",
+    "@types/react": "^19.0.0"
+  }
+}

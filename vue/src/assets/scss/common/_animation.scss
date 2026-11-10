@@ -1,0 +1,60 @@
+/// import math
+
+.bot-ui--animate {
+  // FadeUp
+  .bot-fadeUp-enter-active,
+  .bot-fadeUp-leave-active {
+    opacity: 1;
+    transform: translate(0, 0);
+    transition: opacity 0.15s linear, transform 0.2s ease-out;
+  }
+
+  .bot-fadeUp-enter,
+  .bot-fadeUp-leave-to {
+    transform: translate(0, 20px);
+    opacity: 0;
+  }
+
+  // ScaleUp
+  .bot-scaleUp-enter-active,
+  .bot-scaleUp-leave-active {
+    opacity: 1;
+    transform: scale(1, 1);
+    transition: opacity 0.1s linear, transform 0.2s ease-out;
+  }
+
+  .bot-scaleUp-enter,
+  .bot-scaleUp-leave-to {
+    transform: scale(0, 0);
+    opacity: 0;
+  }
+}
+
+// Typing indicator
+@keyframes botJump {
+  from {
+    transform: translateY(2px);
+  }
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+$typing-duration: 0.35s;
+
+.bot-msg-bubble__typing-indicator {
+  span,
+  &::before,
+  &::after {
+    transform: translateY(2px);
+    animation: botJump ease $typing-duration infinite alternate;
+  }
+
+  span {
+    animation-delay: calc(#{$typing-duration} / 2);
+  }
+
+  &::after {
+    animation-delay: $typing-duration;
+  }
+}

@@ -1,0 +1,10 @@
+.board-disclaimer {
+  p {
+    font-size: 60%;
+    margin: 2% 0 2% 0;
+    line-height: 1; /* Ensure line-height doesn't add extra height */
+    .chat {
+      margin: 1% 0 1% 0;
+    }
+  }
+}
