@@ -32,21 +32,28 @@ div(v-if="sortedOptions.length > 0")
         .card-details.property-card__body
           .property-card__tags
             span.property-card__tag(v-if="option.category") {{ option.category }}
-            span.property-card__tag(v-if="option.description_metadata?.sources?.wp_crm?.address?.address_city") {{ option.description_metadata.sources.wp_crm.address.address_city }}
+            span.property-card__tag(v-if="option.meta_category") {{ $t(option.meta_category === 'rent' ? "propertyCard.forRent" : "propertyCard.forSale") }}
           h3.card-text.property-card__name(:title="option.name") {{option.name}}
-          .property-card__specs(v-if="option.description_metadata?.sources?.wp_crm?.specifications")
-            span(v-if="option.description_metadata.sources.wp_crm.specifications.bedrooms") {{ option.description_metadata.sources.wp_crm.specifications.bedrooms }} {{ $t("text.bedrooms") }}
-            span(v-if="option.description_metadata.sources.wp_crm.specifications.bathrooms") {{ option.description_metadata.sources.wp_crm.specifications.bathrooms }} {{ $t("text.bathrooms") }}
-            span(v-if="option.description_metadata.sources.wp_crm.specifications.size_in_sqmt") {{ option.description_metadata.sources.wp_crm.specifications.size_in_sqmt }} m²
+          .property-card__amenities
+            template(v-for="spec in [{key: 'bedrooms', label: 'bedrooms', unit: 'beds'}, {key: 'bathrooms', label: 'bathrooms', unit: 'baths'}, {key: 'size_in_sqmt', label: 'interior', unit: 'm2'}, {key: 'lot_size', label: 'exterior', unit: 'm2'}]" :key="spec.key")
+              .property-card__amenity-cell(v-if="option.description_metadata?.sources?.wp_crm?.specifications?.[spec.key] != null")
+                span.property-card__amenity-label {{ $t('propertyCard.' + spec.label) }}
+                span.property-card__amenity-value {{ formatPrice(option.description_metadata.sources.wp_crm.specifications[spec.key]) }} {{ $t('propertyCard.' + spec.unit) }}
           .property-card__divider
           .property-card__footer
             .card-price(v-if="option.price")
-              span.property-card__price-label {{ $t("text.publicPrice") }}
+              span.property-card__price-label {{ $t("propertyCard.price") }}
               p.property-card__price {{ option.currency || 'MUR' }} {{ formatPrice(option.price) }}
             ElButton.property-card__cta(:color="botParameters.primaryColor" @click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
-              | {{ $t("btn.viewItem") }}
+              | {{ $t("propertyCard.view") }}
               svg(width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true")
                 path(d="M5 12h14M13 6l6 6-6 6")
+          .property-card__agent(:aria-hidden="option.description_metadata?.sources?.wp_crm?.agent?.agent_name ? undefined : true")
+            template(v-if="option.description_metadata?.sources?.wp_crm?.agent?.agent_name")
+              img.property-card__agent-photo(v-if="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :src="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :alt="option.description_metadata.sources.wp_crm.agent.agent_name" width="32" height="32" loading="lazy")
+              .property-card__agent-text
+                span.property-card__agent-label {{ $t('propertyCard.marketedBy') }}
+                span.property-card__agent-name {{ option.description_metadata.sources.wp_crm.agent.agent_name }}
 
 //- Global/batch action buttons - displayed independently of items
 div.d-flex.flex-column.row-gap-3.animate-actions(v-if="message.actions && Object.keys(message.actions).length > 0")

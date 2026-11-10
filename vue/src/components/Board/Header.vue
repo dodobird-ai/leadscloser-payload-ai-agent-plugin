@@ -14,7 +14,8 @@
       ElPopover(
         v-if="!botParameters.preview || (botParameters.preview && isMobile)"
         placement="bottom-end",
-        :teleported="false",
+        :teleported="true",
+        append-to="#dodobird-chatbot-root",
         :width="200",
         trigger="click",
         v-model:visible="showMenuModal"
