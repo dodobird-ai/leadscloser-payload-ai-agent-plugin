@@ -118,7 +118,7 @@ export const useBotStore = defineStore("bot", {
     botParameters: {
       greetingMessage: "",
       primaryColor: "#4356e0",
-      title: "DodoGPT.ai BETA",
+      title: "LeadsCloser",
       featuredImage: "",
       campaignId: "",
       autoFetchRecommendation: "on",

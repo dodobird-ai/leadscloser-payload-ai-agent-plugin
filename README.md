@@ -15,9 +15,9 @@ npm install /absolute/path/to/leadscloser-payload-ai-agent-plugin
 ```
 
 ```ts
-import { dodobirdChatbotPlugin } from '@dodobird-ai/leadscloser-payload-ai-agent-plugin'
+import { leadsCloserChatbotPlugin } from '@dodobird-ai/leadscloser-payload-ai-agent-plugin'
 // Payload configuration:
-plugins: [dodobirdChatbotPlugin()],
+plugins: [leadsCloserChatbotPlugin()],
 routes: { api: '/api/v1' },
 ```
 
@@ -41,7 +41,7 @@ The mount has `data-lenis-prevent` and isolates bubbling chat gestures. It dispa
 
 ## Source snapshot and tests
 
-`vue/` is a static snapshot of the DodoBird Vue chatbot integrated for Payload. It is intentionally not a submodule. Update it explicitly and rebuild widget assets. The widget includes property cards, detail previews, onboarding and enquiry Vue forms; recommendation integration is not enabled by the Payload plugin. Existing fixture content in the Vue development helpers is illustrative.
+`vue/` is a static snapshot of the LeadsCloser Vue chatbot integrated for Payload. It is intentionally not a submodule. Update it explicitly and rebuild widget assets. The widget includes property cards, detail previews, onboarding and enquiry Vue forms; recommendation integration is not enabled by the Payload plugin. Existing fixture content in the Vue development helpers is illustrative.
 
 ```sh
 npm test
@@ -53,3 +53,7 @@ Contract tests cover secret exclusion, configuration validation, production mock
 Public source availability does not establish an open-source license; the existing Vue package retains its license metadata pending the owner's licensing decision.
 
 Initial floating nudges are derived from the first Input Suggestions group (up to three). Mobile nudges use the Vue widget’s existing ten-second cycle while chat is closed, resume after closing chat, and remain dismissed after the visitor closes them. Backend follow-up suggestions take precedence during an existing conversation.
+
+### Legacy compatibility names
+
+The public API is `leadsCloserChatbotPlugin`. The previous `dodobirdChatbotPlugin` export remains as a compatibility alias. The GitHub organization/package scope, WordPress import keys, authentication action, browser storage keys and existing DOM hooks retain their historical identifiers so existing installations, sessions and themes continue to work. They are technical compatibility identifiers, not customer-facing branding.

@@ -10,8 +10,8 @@ const secretAdmin = {
 
 export const chatbotSettings: GlobalConfig = {
   slug: 'chatbot-settings',
-  label: 'Chatbot Settings',
-  admin: { group: 'Chatbot' },
+  label: 'LeadsCloser Chatbot Settings',
+  admin: { group: 'LeadsCloser' },
   access: { read: isAdmin, update: isAdmin },
   hooks: { beforeValidate: [({ data, originalDoc }) => {
     const merged = { ...originalDoc, ...data }
@@ -49,3 +49,6 @@ export const dodobirdChatbotPlugin = () => (config: Config): Config => {
     endpoints: [...(config.endpoints || []), ...chatbotEndpoints],
   }
 }
+
+/** Preferred public name. Legacy export remains compatible with existing installations. */
+export const leadsCloserChatbotPlugin = dodobirdChatbotPlugin
