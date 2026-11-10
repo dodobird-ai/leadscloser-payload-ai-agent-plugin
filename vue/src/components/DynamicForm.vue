@@ -230,9 +230,10 @@ export default {
         const persistedData = this.dynamicForms.contactForm.data;
 
         // Wait for form to be ready, then load the values
-        nextTick(() => {
+        nextTick(async () => {
           if (this.$refs.form$) {
-            this.$refs.form$.load(persistedData);
+            await this.$refs.form$.load(persistedData);
+            this.$refs.form$.resetValidators();
           }
         });
       }
