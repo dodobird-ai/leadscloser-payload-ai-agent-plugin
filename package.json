@@ -15,7 +15,8 @@
     "src",
     "vue",
     "scripts",
-    "README.md"
+    "README.md",
+    "vue-patches"
   ],
   "peerDependencies": {
     "payload": "^3.84.1",
@@ -31,10 +32,12 @@
     "url": "https://github.com/dodobird-ai/leadscloser-payload-ai-agent-plugin.git"
   },
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "node --test scripts/source-snapshot.test.mjs && node scripts/check-vue-sync.mjs && jest --runInBand",
     "build:widget": "node scripts/build-widget.mjs",
     "security:check": "node scripts/security-check.mjs",
-    "prepublishOnly": "npm run security:check && npm test"
+    "prepublishOnly": "npm run security:check && npm test",
+    "check:vue": "node scripts/check-vue-sync.mjs",
+    "sync:vue": "node scripts/sync-vue.mjs"
   },
   "devDependencies": {
     "@swc/core": "^1.15.41",

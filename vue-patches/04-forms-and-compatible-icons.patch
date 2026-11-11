@@ -1,0 +1,39 @@
+--- a/src/components/DynamicForm.vue
++++ b/src/components/DynamicForm.vue
+@@ -9,7 +9,7 @@
+       </component>
+     </div>
+ 
+-    <Vueform :key="locale" :locale="locale" ref="form$" addClass="vf-my-form" :schema="formSchema"
++    <Vueform :key="`${formName}:${locale}`" :locale="locale" ref="form$" addClass="vf-my-form" :schema="formSchema"
+       :endpoint="false" :display-errors="false" validate-on="submit|blur" @submit="submit" />
+ 
+     <div v-html="dynamicStyles"></div>
+@@ -258,9 +258,10 @@
+         const persistedData = this.dynamicForms.contactForm.data;
+ 
+         // Wait for form to be ready, then load the values
+-        nextTick(() => {
++        nextTick(async () => {
+           if (this.$refs.form$) {
+-            this.$refs.form$.load(persistedData);
++            await this.$refs.form$.load(persistedData);
++            this.$refs.form$.resetValidators();
+           }
+         });
+       }
+--- a/src/components/MessageBubble/PropertyPreview.vue
++++ b/src/components/MessageBubble/PropertyPreview.vue
+@@ -238,10 +238,10 @@
+   ArrowLeft as ArrowLeftIcon,
+   ArrowRight as ArrowRightIcon,
+   CircleCheck as CircleCheckIcon,
+-  Toilet as IconToilet,
++  ToiletPaper as IconToilet,
+   Calendar as IconCalendar,
+   Grid as IconTerrace,
+-  Parking as IconParking,
++  Van as IconParking,
+ } from "@element-plus/icons-vue";
+ // Note: Using available Element Plus icons as substitutes
+ // IconBathroom will use a similar icon

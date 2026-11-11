@@ -1,0 +1,20 @@
+--- a/src/store/bot.js
++++ b/src/store/bot.js
+@@ -110,7 +110,7 @@
+       tenantName: "", // Tenant name for API calls (e.g., "sothebys-realty-mu")
+       greetingMessage: "",
+       primaryColor: "#4356e0",
+-      title: "DodoGPT.ai BETA",
++      title: "LeadsCloser",
+       featuredImage: "",
+       campaignId: "",
+       autoFetchRecommendation: "on",
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "dodo-ai-chat",
++  "name": "leadscloser-chatbot",
+   "version": "0.1.0",
+   "private": true,
+   "license": "UNLICENSED",

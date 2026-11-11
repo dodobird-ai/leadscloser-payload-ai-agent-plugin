@@ -77,3 +77,14 @@ Run `npm run security:check` before publishing or pushing a release. It requires
 Keep real credentials in the host's private runtime configuration, never in Vue environment variables or fixtures. Use reserved `example.com` addresses for examples. Do not add customer screenshots, enquiry exports, database dumps, or production configuration to the generic plugin. A clean scan is evidence for the checked revision, not a guarantee that arbitrary future changes or external copies are confidential.
 
 Behind a reverse proxy, set Payload's `serverURL` to the canonical public website origin. Reporting and admin provisioning/import origin checks use that trusted configuration instead of the container's internal URL. Forwarded headers do not grant access to other origins. MSIR uses its existing `NEXT_PUBLIC_API_BASE_URL` site origin for this setting.
+
+
+## Reproducible Vue updates
+
+`vue/UPSTREAM.json` pins the full dodo-ai-chat commit. Run `npm run sync:vue -- <revision>` to fetch that commit, apply publication exclusions and the ordered `vue-patches/*.patch` files, and replace the managed snapshot. Run `npm run check:vue` (also part of `npm test`) to reconstruct it in a temporary directory and reject any drift, including extra files. Never hand-edit the vendored source without updating its patch.
+
+Exactly four paths are ignored by this comparison: `node_modules/` (installed dependencies), `.cache/` and `dist/` (generated build outputs), and `package-lock.json` (our npm resolution; upstream uses Yarn). Sync preserves these four paths. Regenerate the npm lock when dependency declarations change; CI separately runs `npm ci --prefix vue` to validate it. UPSTREAM metadata, source, assets, package.json and all other files are compared byte-for-byte. `scripts/vue-source.mjs` lists publication exclusions: upstream environment files, CI/tests/docs, Yarn lock and customer demo assets. The embedded fake-message dataset is excluded before a patch adds an empty helper, keeping removed customer data out of patch files too.
+
+The upstream is private. CI requires repository Actions secret `VUE_UPSTREAM_TOKEN` with read-only contents access to `dodobird-ai/dodo-ai-chat`; it is passed only as `GH_TOKEN` to Git's gh credential helper. No credential is recorded in the snapshot. For offline local validation, `VUE_UPSTREAM_SOURCE=/path/to/dodo-ai-chat` fetches the same pinned Git object from an existing clone.
+
+The integration revision `2ccec2d8f3b9121c8ad411193490ead821d011aa` is published on `integrate/fix-chatbot-forms` as a reference only. After upstream PR #74 merges, sync to that main commit, run the drift check, and compare source trees excluding UPSTREAM metadata. Expect identical trees only if main has no additional changes; review any difference rather than assuming equality.
