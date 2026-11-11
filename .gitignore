@@ -3,3 +3,18 @@ node_modules
 *.tgz
 dist/
 .cache/
+
+# Keep credentials, local exports and private material out of version control.
+.env*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.sql
+*.dump
+*.sqlite*
+secrets/
+credentials/
+*.log

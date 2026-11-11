@@ -200,7 +200,7 @@ export const formConfigs = {
       email: {
         type: "text",
         label: { en: "Email Address", fr: "Adresse e-mail" },
-        placeholder: "your@email.com",
+        placeholder: "visitor@example.com",
         size: "sm",
         rules: ["required", "email"],
         fieldName: "email",
@@ -284,7 +284,7 @@ export const formConfigs = {
       email: {
         type: "text",
         label: { en: "Email Address", fr: "Adresse e-mail" },
-        placeholder: "your@email.com",
+        placeholder: "visitor@example.com",
         size: "sm",
         rules: ["required", "email"],
         fieldName: "email",

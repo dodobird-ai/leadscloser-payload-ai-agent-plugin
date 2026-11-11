@@ -32,7 +32,9 @@
   },
   "scripts": {
     "test": "jest --runInBand",
-    "build:widget": "node scripts/build-widget.mjs"
+    "build:widget": "node scripts/build-widget.mjs",
+    "security:check": "node scripts/security-check.mjs",
+    "prepublishOnly": "npm run security:check && npm test"
   },
   "devDependencies": {
     "@swc/core": "^1.15.41",
