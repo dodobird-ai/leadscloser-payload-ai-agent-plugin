@@ -1,7 +1,8 @@
 import { jest, test, expect, beforeEach, afterEach } from '@jest/globals'
 import { configurationProblem, importWordPressOptions, publicSettings, upstreamURL } from '../src/settings'
+import { chatbotSettings } from '../src/index'
 import { chatbotEndpoints } from '../src/endpoints'
-import type { PayloadRequest } from 'payload'
+import type { PayloadRequest, TextField } from 'payload'
 import type { ChatbotSetting } from '../src/types'
 
 const settings = {
@@ -116,4 +117,39 @@ test('admin settings origin check uses configured public origin behind a proxy',
   const request = req({ user: { role: 'admin' }, headers: new Headers({ origin: 'https://sir.mu' }), json: async () => ({ dodobirdai_chatbot_title: 'Updated title' }) })
   Object.assign(request.payload, { config: { serverURL: 'https://sir.mu' } })
   expect((await endpoint('/import')(request)).status).toBe(200)
+})
+
+
+test('reporting configuration and credentials never enter the public widget config', () => {
+  const config = publicSettings({ ...settings, reportingOrigin: 'https://reporting.example.com', reportingApiKey: 'reporting-secret', reportingTenantId: 'private-tenant' })
+  for (const name of ['reportingOrigin', 'reportingApiKey', 'reportingTenantId']) expect(config).not.toHaveProperty(name)
+  expect(JSON.stringify(config)).not.toContain('reporting-secret')
+})
+test('reporting secret uses the same admin-only field access and editor as chat API key', () => {
+  const api = chatbotSettings.fields.find(f => 'name' in f && f.name === 'apiKey')! as TextField
+  const reporting = chatbotSettings.fields.find(f => 'name' in f && f.name === 'reportingApiKey')! as TextField
+  expect(reporting.access).toEqual(api.access)
+  expect(reporting.admin).toEqual(api.admin)
+  for (const role of [undefined, 'editor', 'admin']) {
+    const args = { req: { user: role ? { role } : undefined } } as never
+    expect(reporting.access!.read!(args)).toBe(role === 'admin')
+    expect(reporting.access!.update!(args)).toBe(role === 'admin')
+  }
+})
+
+
+test('sync prefills optional reporting metadata but never imports a reporting secret', async () => {
+  jest.mocked(fetch).mockResolvedValue(Response.json({ value: { campaign_id: 'new', cf_site_key: 'site', cf_secret_key: 'secret', reporting_origin: 'https://reports.example.com', tenant_id: 'tenant-2', reporting_api_key: 'do-not-import' } }))
+  const request = req({ user: { role: 'admin' } })
+  await endpoint('sync')(request)
+  expect(request.payload.updateGlobal).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ reportingOrigin: 'https://reports.example.com', reportingTenantId: 'tenant-2' }) }))
+  expect(JSON.stringify(jest.mocked(request.payload.updateGlobal).mock.calls)).not.toContain('do-not-import')
+})
+test('sync preserves operator reporting settings and local Turnstile test keys', async () => {
+  process.env.CHATBOT_MOCK = 'true'
+  const request = req({ user: { role: 'admin' } })
+  jest.mocked(request.payload.findGlobal).mockResolvedValue({ ...settings, reportingOrigin: 'https://saved.example.com', reportingTenantId: 'saved', cfSiteKey: '1x00000000000000000000AA' } as never)
+  jest.mocked(fetch).mockResolvedValue(Response.json({ value: { campaign_id: 'new', cf_site_key: 'production-site', cf_secret_key: 'production-secret', reporting_origin: 'https://other.example.com', tenant_id: 'other' } }))
+  await endpoint('sync')(request)
+  expect(request.payload.updateGlobal).toHaveBeenCalledWith(expect.objectContaining({ data: { campaignId: 'new' } }))
 })

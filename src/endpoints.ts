@@ -1,10 +1,10 @@
 import { publicOrigin } from './origin.ts'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { z } from 'zod'
-import { configurationProblem, importWordPressOptions, publicSettings, upstreamURL } from './settings.ts'
+import { configurationProblem, importWordPressOptions, publicSettings, upstreamURL, reportingURL, mockEnabled } from './settings.ts'
 
 const tokenSchema = z.object({ token: z.string().min(1), expires_at: z.number().positive() }).passthrough()
-const provisionSchema = z.object({ campaign_id: z.string().min(1), cf_site_key: z.string().min(1), cf_secret_key: z.string().min(1) })
+const provisionSchema = z.object({ campaign_id: z.string().min(1), cf_site_key: z.string().min(1), cf_secret_key: z.string().min(1), reporting_origin: z.string().optional(), reporting_tenant_id: z.string().optional(), tenant_id: z.string().optional() })
 export const json = (data: unknown, status = 200) => Response.json(data, {
   status, headers: { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' },
 })
@@ -81,9 +81,20 @@ async function sync(req: PayloadRequest) {
   if (origin && origin !== publicOrigin(req)) return json({ error: 'Origin not allowed' }, 403)
   try {
     const settings = provisionSchema.parse(await upstream(req, '/api/v1/request-settings/'))
-    await req.payload.updateGlobal({ slug: 'chatbot-settings', req, overrideAccess: false, data: {
-      campaignId: settings.campaign_id, cfSiteKey: settings.cf_site_key, cfSecretKey: settings.cf_secret_key,
-    } })
+    const saved = await readSettings(req)
+    const data: Record<string, string> = { campaignId: settings.campaign_id, cfSiteKey: settings.cf_site_key, cfSecretKey: settings.cf_secret_key }
+    // Local preview must not replace its test challenge with production credentials.
+    if (mockEnabled() && ['1x00000000000000000000AA', '1x00000000000000000000BB'].includes(saved.cfSiteKey || '')) {
+      delete data.cfSiteKey
+      delete data.cfSecretKey
+    }
+    // Optional metadata may prefill blanks; never overwrite operator settings or import a reporting key.
+    if (!saved.reportingOrigin && settings.reporting_origin) {
+      try { reportingURL(settings.reporting_origin); data.reportingOrigin = settings.reporting_origin } catch { /* Ignore invalid optional metadata. */ }
+    }
+    const tenant = settings.reporting_tenant_id || settings.tenant_id
+    if (!saved.reportingTenantId && tenant && /^[\w.:-]{1,200}$/.test(tenant)) data.reportingTenantId = tenant
+    await req.payload.updateGlobal({ slug: 'chatbot-settings', req, overrideAccess: false, data })
     return json({ success: true })
   } catch {
     return json({ error: 'Backend settings could not be synchronized. Check the saved API origin and key.' }, 502)

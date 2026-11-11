@@ -7,6 +7,10 @@ export interface ChatbotSetting {
    * Server-only credential. Accessible only to administrators.
    */
   apiKey?: string | null;
+  reportingOrigin?: string | null;
+  /** Admin-only credential, stored like apiKey. Never included in public config. */
+  reportingApiKey?: string | null;
+  reportingTenantId?: string | null;
   cfSiteKey?: string | null;
   /**
    * Server-only credential. Accessible only to administrators.

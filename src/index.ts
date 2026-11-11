@@ -2,7 +2,7 @@ import { createReportingEndpoint, type ReportingOptions } from './reporting.ts'
 import { APIError, type Config, type GlobalConfig } from 'payload'
 import { isAdmin, isAdminFieldLevel } from './access.ts'
 import { chatbotEndpoints } from './endpoints.ts'
-import { configurationProblem, suggestionsSchema, upstreamURL } from './settings.ts'
+import { configurationProblem, suggestionsSchema, upstreamURL, reportingURL } from './settings.ts'
 
 const secretAdmin = {
   description: 'Server-only credential. Accessible only to administrators.',
@@ -28,6 +28,15 @@ export const chatbotSettings: GlobalConfig = {
       try { upstreamURL(value, '/'); return true } catch { return 'Enter an HTTPS origin. Local HTTP requires mock mode.' }
     } },
     { name: 'apiKey', type: 'text', access: { read: isAdminFieldLevel, update: isAdminFieldLevel }, admin: secretAdmin },
+    { name: 'reportingOrigin', label: 'Reporting origin', type: 'text', defaultValue: 'https://api.dodobird.ai',
+      admin: { description: 'Separate reporting service origin. Never falls back to the chatbot backend.' },
+      validate: (value: string | null | undefined) => {
+        if (!value) return true
+        try { reportingURL(value); return true } catch { return 'Enter an HTTPS origin without a path, query, or credentials.' }
+      } },
+    { name: 'reportingApiKey', label: 'Reporting API key', type: 'text', access: { read: isAdminFieldLevel, update: isAdminFieldLevel }, admin: secretAdmin },
+    { name: 'reportingTenantId', label: 'Reporting tenant ID', type: 'text', admin: { description: 'Optional X-TENANT-ID header for the reporting service.' },
+      validate: (value: string | null | undefined) => !value || /^[\w.:-]{1,200}$/.test(value) || 'Use a tenant identifier without spaces or header control characters.' },
     { name: 'cfSiteKey', type: 'text' },
     { name: 'cfSecretKey', type: 'text', access: { read: isAdminFieldLevel, update: isAdminFieldLevel }, admin: secretAdmin },
     { name: 'provisioning', type: 'ui', admin: { components: { Field: '@dodobird-ai/leadscloser-payload-ai-agent-plugin/admin#ProvisionSettings' } } },
