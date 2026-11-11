@@ -1,3 +1,4 @@
+import { createReportingEndpoint, type ReportingOptions } from './reporting.ts'
 import { APIError, type Config, type GlobalConfig } from 'payload'
 import { isAdmin, isAdminFieldLevel } from './access.ts'
 import { chatbotEndpoints } from './endpoints.ts'
@@ -41,12 +42,14 @@ export const chatbotSettings: GlobalConfig = {
   ],
 }
 
-export const dodobirdChatbotPlugin = () => (config: Config): Config => {
+export interface ChatbotPluginOptions { reporting?: ReportingOptions }
+
+export const dodobirdChatbotPlugin = (options: ChatbotPluginOptions = {}) => (config: Config): Config => {
   if (config.globals?.some(global => global.slug === chatbotSettings.slug)) throw new Error('Chatbot plugin is already registered')
   return {
     ...config,
     globals: [...(config.globals || []), chatbotSettings],
-    endpoints: [...(config.endpoints || []), ...chatbotEndpoints],
+    endpoints: [...(config.endpoints || []), ...chatbotEndpoints, createReportingEndpoint(options.reporting)],
   }
 }
 

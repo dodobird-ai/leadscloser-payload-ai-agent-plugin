@@ -57,3 +57,11 @@ Initial floating nudges are derived from the first Input Suggestions group (up t
 ### Legacy compatibility names
 
 The public API is `leadsCloserChatbotPlugin`. The previous `dodobirdChatbotPlugin` export remains as a compatibility alias. The GitHub organization/package scope, WordPress import keys, authentication action, browser storage keys and existing DOM hooks retain their historical identifiers so existing installations, sessions and themes continue to work. They are technical compatibility identifiers, not customer-facing branding.
+
+## Chatbot event reporting
+
+The native reporting adapter preserves the WordPress chatbot's property View and image-click events (`item_view`, with `recommendation` or `chatbot_image_action` product types). It forwards validated events to `/api/reporting` using a server-held key and includes the existing session/visitor, campaign, property, message and conversation identifiers. No message text or enquiry fields are included. WooCommerce cart/purchase attribution and recommendation tracking remain outside this chatbot plugin.
+
+Reporting is **denied by default**. Register `leadsCloserChatbotPlugin({ reporting: { hasConsent: req => /* validate your host's analytics consent */ false } })` and pass the current consent boolean to `<Chatbot analyticsConsent={allowed} />`. Custom mounts can import `startChatbotTracking` from the `/tracking` export, supply `hasConsent: () => boolean`, and invoke the returned cleanup when unmounting or withdrawing consent. No pre-consent events are queued. A server consent callback is mandatory even if browser consent is granted.
+
+Server options `reporting.apiHostname`, `reporting.apiKey`, and `reporting.tenantId` override the saved chatbot origin/key and optionally supply `X-TENANT-ID`. Keep them server-only. The endpoint rejects missing/mismatched origins, invalid or oversized events, missing session cookies and requests without consent, and has a bounded per-process rate limit. Configure ingress rate limiting as appropriate for multi-instance hosting. Tracking failures never block chatting. Existing WordPress wire identifiers remain for backend compatibility; no schema migration is required.

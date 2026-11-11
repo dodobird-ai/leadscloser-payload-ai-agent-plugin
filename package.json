@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./client": "./src/Chatbot.tsx",
     "./loader": "./src/client.ts",
-    "./admin": "./src/admin.tsx"
+    "./admin": "./src/admin.tsx",
+    "./tracking": "./src/tracking.ts"
   },
   "files": [
     "src",
