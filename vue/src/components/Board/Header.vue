@@ -40,6 +40,7 @@
 import { mapActions, mapState } from 'pinia';
 import { useBotStore } from '@/store/bot';
 import { ElIcon, ElPopover } from 'element-plus';
+import { isSilentForm, autoSubmitSilentForm } from '@/hooks/formHooks';
 import {
   FullScreen,
   Minus,
@@ -76,7 +77,7 @@ export default {
     };
   },
   computed: {
-    ...mapState(useBotStore, ['statusSidebar', 'botParameters', 'urlParams', 'statusSmallScreen', 'statusChatMode', 'messagesDataForCurrentConversation', 'statusTyping'])
+    ...mapState(useBotStore, ['statusSidebar', 'botParameters', 'urlParams', 'statusSmallScreen', 'statusChatMode', 'messagesDataForCurrentConversation', 'statusTyping', 'dynamicForms'])
   },
   methods: {
     ...mapActions(useBotStore, ['setStatusChatMode', 'clearConversation', 'createConversation', 'toggleDynamicForm']),
@@ -89,12 +90,21 @@ export default {
     async startNewChat() {
       // TODO: refactor this logic everywhere - this is duplicated in BotUI.vue and RecentChats.vue
       this.showMenuModal = false;
-      
+
       // Clear the current conversation if there are messages
       if (this.messagesDataForCurrentConversation.length > 1 && !this.statusTyping) {
         await this.clearConversation();
-        // Show the locale form popup for new chats
-        this.toggleDynamicForm('localeForm');
+
+        // Check if localeForm is silent (auto-submit) or needs to be shown
+        const localeFormConfig = this.dynamicForms?.localeForm;
+
+        if (isSilentForm(localeFormConfig)) {
+          // For silent forms, auto-submit with detected values
+          await autoSubmitSilentForm('localeForm', localeFormConfig, useBotStore());
+        } else if (localeFormConfig?.schema) {
+          // Show the locale form popup for new chats (only if schema is available)
+          this.toggleDynamicForm('localeForm');
+        }
       }
 
       // Create a new conversation

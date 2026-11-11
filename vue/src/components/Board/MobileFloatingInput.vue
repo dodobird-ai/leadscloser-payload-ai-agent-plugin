@@ -44,6 +44,8 @@ export default {
       detectedBackgroundColor: null,
       isLightBackground: true,
       mobileInitialized: false,
+      placeholderIndex: 0,
+      placeholderInterval: null,
     };
   },
   computed: {
@@ -53,12 +55,19 @@ export default {
       return this.messagesDataForCurrentConversation && this.messagesDataForCurrentConversation.length > 0;
     },
 
+    placeholderOptions() {
+      return [
+        this.$t("placeholder.askMaxAI"),
+        this.$t("placeholder.searchMaxAI"),
+      ];
+    },
+
     placeholder() {
       // If there are messages in the current conversation, show "Continue conversation"
       if (this.hasExistingMessages) {
         return this.$t("placeholder.continueConversation");
       }
-      return this.$t("placeholder.askMaxAI");
+      return this.placeholderOptions[this.placeholderIndex];
     },
 
     buttonBackgroundColor() {
@@ -104,6 +113,10 @@ export default {
       this.mobileInitialized = true;
       this.initializeMobileFeatures();
     }
+    // Start rotating placeholder text every 4 seconds
+    this.placeholderInterval = setInterval(() => {
+      this.placeholderIndex = (this.placeholderIndex + 1) % this.placeholderOptions.length;
+    }, 4000);
   },
   beforeUnmount() {
     if (this.statusSmallScreen) {
@@ -113,6 +126,9 @@ export default {
       if (this.scrollTimeout) {
         clearTimeout(this.scrollTimeout);
       }
+    }
+    if (this.placeholderInterval) {
+      clearInterval(this.placeholderInterval);
     }
   },
   methods: {

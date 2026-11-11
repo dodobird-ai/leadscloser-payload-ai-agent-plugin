@@ -108,7 +108,7 @@ export default {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   transform: scale(0.9);
   transition: transform 0.3s ease-out;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 .exit-intent-form.active .exit-intent-popup {
@@ -125,7 +125,7 @@ export default {
   font-weight: 600;
   margin: 0;
   color: #333;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 .exit-intent-popup__body {
@@ -138,7 +138,7 @@ export default {
   line-height: 1.6;
   color: #666;
   margin: 0;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 .exit-intent-popup__actions {
@@ -154,7 +154,7 @@ export default {
   height: 44px;
   font-size: 1rem;
   font-weight: 500;
-  font-family: 'Poppins', sans-serif !important;
+  font-family: "Poppins", sans-serif !important;
 }
 
 .exit-intent-popup__btn-secondary {

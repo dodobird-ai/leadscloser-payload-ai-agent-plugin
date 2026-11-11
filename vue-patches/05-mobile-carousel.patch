@@ -1,0 +1,36 @@
+--- a/src/components/Board/FloatingBubbles.vue
++++ b/src/components/Board/FloatingBubbles.vue
+@@ -79,6 +79,15 @@
+         : this.$root.$i18n.locale;
+     },
+   },
++  watch: {
++    statusActive(active) {
++      this.stopNudgeLoop();
++      if (!active && !this.floatingBubblesDismissed) this.$nextTick(this.startNudgeLoop);
++    },
++    floatingBubblesDismissed(dismissed) {
++      if (dismissed) this.stopNudgeLoop();
++    },
++  },
+   mounted() {
+     // Listen for scroll to hide bubbles temporarily
+     window.addEventListener('scroll', this.handleScroll, { passive: true });
+@@ -127,6 +136,8 @@
+     },
+ 
+     startNudgeLoop() {
++      this.stopNudgeLoop();
++      if (this.statusActive || this.floatingBubblesDismissed) return;
+       this.nudgeScroll();
+       this.nudgeInterval = setInterval(() => this.nudgeScroll(), 3000);
+     },
+@@ -139,7 +150,7 @@
+     },
+ 
+     nudgeScroll() {
+-      const scrollEl = this.$el?.querySelector('.floating-bubbles__scroll');
++      const scrollEl = this.$el?.querySelector?.('.floating-bubbles__scroll');
+       if (!scrollEl) return;
+       // Only nudge if the container is actually horizontally scrollable
+       if (scrollEl.scrollWidth <= scrollEl.clientWidth) return;

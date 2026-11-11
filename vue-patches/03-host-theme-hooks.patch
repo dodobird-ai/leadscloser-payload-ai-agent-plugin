@@ -1,0 +1,165 @@
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -194,5 +194,5 @@
+   );
+ }
+ 
+-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&family=Plaster&family=Urbanist:wght@400&display=swap");
++
+ </style>
+--- a/src/assets/scss/components/_content.scss
++++ b/src/assets/scss/components/_content.scss
+@@ -513,3 +513,14 @@
+     }
+   }
+ }
++
++/* Property metadata structure. Host themes may reuse their own card stylesheet. */
++.custom-card {
++  .property-card__tags, .property-card__specs, .property-card__footer { display: flex; flex-wrap: wrap; gap: 8px; }
++  .property-card__tags { margin-bottom: 8px; }
++  .property-card__specs { margin: 8px 0; }
++  .property-card__footer { align-items: flex-end; justify-content: space-between; }
++  .property-card__footer .card-price { margin: 0; text-align: left; }
++  .property-card__footer .property-card__cta { width: auto; }
++  .property-card__divider { height: 1px; margin: 8px 0; background: currentColor; opacity: .15; }
++}
+--- a/src/components/Board/Header.vue
++++ b/src/components/Board/Header.vue
+@@ -1,8 +1,9 @@
+ <template lang="pug">
+ .board-header
+   slot(name="header")
+-    .board-header__title(v-if="statusChatMode") {{botParameters.title}}
+-    .board-header__title(v-else) Recent Chats
++    .board-header__identity
++      .board-header__title(v-if="statusChatMode") {{botParameters.title}}
++      .board-header__title(v-else) Recent Chats
+     .board-header__menu()
+       ElIcon.m-1.board-header__actions(v-if="!botParameters.preview && !statusSmallScreen && botParameters.view === 'both'", @click="togglePosition", size="20", color="#CBCCCD")
+         BottomLeft(v-if="statusSidebar")
+@@ -13,6 +14,8 @@
+       ElPopover(
+         v-if="!botParameters.preview || (botParameters.preview && isMobile)"
+         placement="bottom-end",
++        :teleported="true",
++        append-to="#dodobird-chatbot-root",
+         :width="200",
+         trigger="click",
+         v-model:visible="showMenuModal"
+--- a/src/components/MessageBubble/BotSuggestions.vue
++++ b/src/components/MessageBubble/BotSuggestions.vue
+@@ -38,58 +38,44 @@
+       ref="scrollContainer"
+       :style="{ cursor: isDragging ? 'grabbing' : 'grab' }"
+     )
+-      .property-card.animate-card(v-for="(option, index) in sortedOptions" :key="option.item_id || index" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-tracking-object="item" :data-tracking-name="option.sku" :style="cardAnimationStyle(index)")
+-        //- Image Section
+-        .property-card__image-section(@click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="image")
+-          .property-card__image(v-if="option.image_url" :style="{ backgroundImage: 'url(' + getFirstImageUrl(option.image_url) + ')' }")
+-          .property-card__image.property-card__image--placeholder(v-else)
+-            ElIcon.property-card__placeholder-icon
+-              PictureIcon
+-          //- Remove Button
+-          button.property-card__remove(v-if="!botParameters.preview" @click.stop="removeItem(index, option.item_id)")
+-            IconThumbDown
+-
+-        //- Content Section (flexible, takes remaining space)
+-        .property-card__content
+-          //- Tags Section
++      ElCard.custom-card.animate-card(v-for="(option, index) in sortedOptions" :key="option.item_id || index" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-tracking-object="item" :data-tracking-name="option.sku" :style="cardAnimationStyle(index)")
++        .card-header(@click="openPropertyPreview(option)" style="cursor: pointer" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="image")
++          .card-image(v-if="option.image_url" :style="{ backgroundImage: 'url(' + getFirstImageUrl(option.image_url) + ')' }")
++          ElImage.card-image(v-else)
++            template(#error)
++              div.image-slot
++                ElIcon
++                  PictureIcon
++                p.text-center.fs-5.px-5 {{ $t("text.itemImageNotAvailable") }}
++          .action-buttons(v-if="!botParameters.preview")
++            //- IconThumbUp.like-btn(@click="toggleLike(option.id)" :class="{ 'liked': isLiked(option.id) }")
++            IconThumbDown.unlike-btn(@click.stop="removeItem(index, option.item_id)")
++        .card-details.property-card__body
+           .property-card__tags
+-            span.property-card__tag(v-if="option.category") {{ formatCategory(option.category) }}
+-            span.property-card__tag.property-card__tag--highlight(v-if="option.meta_category") {{ getFullStatusLabel(option.meta_category) }}
+-            span.property-card__tag.property-card__tag--highlight(v-if="isAccessibleToForeigners(option)") FOREIGNERS OK
+-
+-          //- Title
+-          .property-card__title {{ option.name }}
+-
+-          //- Stats Row
+-          .property-card__stats(v-if="getSpecs(option).bedrooms || getSpecs(option).size_in_sqmt || getSpecs(option).lot_size")
+-            span.property-card__stat(v-if="getSpecs(option).bedrooms") {{ getSpecs(option).bedrooms }} {{ getSpecs(option).bedrooms === 1 ? 'BED' : 'BEDS' }}
+-            span.property-card__stat(v-if="getSpecs(option).bathrooms") {{ getSpecs(option).bathrooms }} {{ getSpecs(option).bathrooms === 1 ? 'BATH' : 'BATHS' }}
+-            span.property-card__stat(v-if="getSpecs(option).size_in_sqmt") {{ formatArea(getSpecs(option).size_in_sqmt) }} M²
+-            span.property-card__stat(v-if="!getSpecs(option).size_in_sqmt && getSpecs(option).lot_size") {{ formatArea(getSpecs(option).lot_size) }} M² LAND
+-
+-        //- Footer Section (always at bottom)
+-        .property-card__footer
+-          //- Price Section
+-          .property-card__price-section
+-            .property-card__price-wrapper
+-              span.property-card__price-label PRICE
+-              .property-card__price
+-                span(v-if="option.currency") {{ option.currency }}
+-                span(v-else) USD
+-                | &nbsp;{{ formatPrice(option.price) }}
+-            button.property-card__view-btn(@click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
+-              | View
+-              ArrowRightIcon
+-
+-          //- Agent Section (if available)
+-          .property-card__agent(v-if="getAgent(option).agent_name")
+-            .property-card__agent-avatar
+-              img(v-if="getAgent(option).agent_photo_url" :src="getAgent(option).agent_photo_url" :alt="getAgent(option).agent_name")
+-              .property-card__agent-avatar-placeholder(v-else)
+-                | {{ getInitials(getAgent(option).agent_name) }}
+-            .property-card__agent-info
+-              span.property-card__agent-label Marketed by
+-              span.property-card__agent-name {{ getAgent(option).agent_name }}
++            span.property-card__tag(v-if="option.category") {{ option.category }}
++            span.property-card__tag(v-if="option.meta_category") {{ $t(option.meta_category === 'rent' ? "propertyCard.forRent" : "propertyCard.forSale") }}
++            span.property-card__tag(v-if="isAccessibleToForeigners(option)") {{ $t("propertyCard.foreigners") }}
++          h3.card-text.property-card__name(:title="option.name") {{option.name}}
++          .property-card__amenities
++            template(v-for="spec in [{key: 'bedrooms', label: 'bedrooms', unit: 'beds'}, {key: 'bathrooms', label: 'bathrooms', unit: 'baths'}, {key: 'size_in_sqmt', label: 'interior', unit: 'm2'}, {key: 'lot_size', label: 'exterior', unit: 'm2'}]" :key="spec.key")
++              .property-card__amenity-cell(v-if="option.description_metadata?.sources?.wp_crm?.specifications?.[spec.key] != null")
++                span.property-card__amenity-label {{ $t('propertyCard.' + spec.label) }}
++                span.property-card__amenity-value {{ formatPrice(option.description_metadata.sources.wp_crm.specifications[spec.key]) }} {{ $t('propertyCard.' + spec.unit) }}
++          .property-card__divider
++          .property-card__footer
++            .card-price(v-if="option.price")
++              span.property-card__price-label {{ $t("propertyCard.price") }}
++              p.property-card__price {{ option.currency || 'MUR' }} {{ formatPrice(option.price) }}
++            ElButton.property-card__cta(:color="botParameters.primaryColor" @click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
++              | {{ $t("propertyCard.view") }}
++              svg(width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true")
++                path(d="M5 12h14M13 6l6 6-6 6")
++          .property-card__agent(:aria-hidden="option.description_metadata?.sources?.wp_crm?.agent?.agent_name ? undefined : true")
++            template(v-if="option.description_metadata?.sources?.wp_crm?.agent?.agent_name")
++              img.property-card__agent-photo(v-if="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :src="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :alt="option.description_metadata.sources.wp_crm.agent.agent_name" width="32" height="32" loading="lazy")
++              .property-card__agent-text
++                span.property-card__agent-label {{ $t('propertyCard.marketedBy') }}
++                span.property-card__agent-name {{ option.description_metadata.sources.wp_crm.agent.agent_name }}
+ 
+       //- Load More card at the end of carousel
+       .property-card.property-card--load-more(v-if="message.has_more && !isLoadingMore" @click="loadMoreResults")
+--- a/src/i18n.js
++++ b/src/i18n.js
+@@ -5,6 +5,7 @@
+     fallbackLocale: "en",
+     messages: {
+         en: {
++            propertyCard: { foreigners: 'Foreigners eligible', bedrooms: 'Bedrooms', bathrooms: 'Bathrooms', interior: 'Interior', exterior: 'Exterior', beds: 'beds', baths: 'baths', m2: 'm²', price: 'Price', view: 'View this property', marketedBy: 'Marketed by', forSale: 'For sale', forRent: 'For rent' },
+             btn: {
+                 sidebarView: "Sidebar View (Beta)",
+                 chatbotView: "Chatbot View",
+@@ -54,6 +55,7 @@
+             },
+         },
+         fr: {
++            propertyCard: { foreigners: 'Accessible aux étrangers', bedrooms: 'Chambres', bathrooms: 'Salles de bain', interior: 'Intérieur', exterior: 'Extérieur', beds: 'chambres', baths: 'bains', m2: 'm²', price: 'Prix', view: 'Voir ce bien', marketedBy: 'Commercialisé par', forSale: 'À vendre', forRent: 'À louer' },
+             btn: {
+                 sidebarView: "Vue en barre latérale (Bêta)",
+                 chatbotView: "Vue du chatbot",

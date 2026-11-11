@@ -8,7 +8,7 @@
         <div :class="classes.buttonsWrapper">
           <button
             v-for="nationality in predefinedNationalities"
-            :key="nationality.name"
+            :key="nationality"
             type="button"
             :class="[
               classes.nationalityButton,
@@ -60,7 +60,7 @@
               <div :class="classes.dropdownList">
                 <button
                   v-for="nationality in filteredNationalities"
-                  :key="nationality.name"
+                  :key="nationality"
                   type="button"
                   :class="classes.dropdownItem"
                   @click="selectNationalityFromDropdown(nationality)"
@@ -87,23 +87,18 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 
 export default defineElement({
   name: "NationalityElement",
-  setup(props, { element }) {
+  setup(props, context) {
+    const { element } = context;
     const showDropdown = ref(false);
     const searchQuery = ref("");
     const selectedNationality = ref(null);
     const defaultNationality = ref("");
 
-    // Predefined nationalities that appear as buttons
-    const predefinedNationalities = ref([
-      "Mauritian",
-      "French",
-      "South African",
-      "Belgian",
-      "British",
-      "German",
-      "Emirati",
-      "Swiss",
-    ]);
+    // Predefined nationalities from backend schema via attrs (no fallback — backend is source of truth)
+    const schemaPredefined = context.attrs.predefined_nationalities;
+    const predefinedNationalities = ref(
+      Array.isArray(schemaPredefined) ? schemaPredefined : []
+    );
 
     // All nationalities for the dropdown
     const allNationalities = ref([

@@ -1,0 +1,26 @@
+--- a/src/components/BotUI.vue
++++ b/src/components/BotUI.vue
+@@ -47,6 +47,7 @@
+     button.bot-bubble-btn(
+       v-if="!statusActive && !statusSmallScreen"
+       @click="botToggle"
++      aria-label="Open chatbot"
+     )
+       bubble-icon.bot-bubble-btn-icon(v-if="!botParameters.featuredImage")
+       img.bot-bubble-btn-icon(v-else :src="botParameters.featuredImage" )
+@@ -129,14 +130,12 @@
+     },
+     skipCaptcha() {
+       return (
+-        process.env.VUE_APP_SKIP_CAPTCHA !== "false" ||
+-        process.env.NODE_ENV === "development" ||
+         this.botParameters.preview
+       );
+     },
+   },
+   created() {
+-    this.setCfStatus("verified", true);
++    this.setCfStatus("verified", Boolean(this.skipCaptcha));
+ 
+     if (this.isOpen) {
+       this.openDelay

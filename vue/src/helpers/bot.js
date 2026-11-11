@@ -52,6 +52,56 @@ function createMessage(store) {
 }
 
 function processMessage({ data, store, message_id, conversationId }) {
+  // Handle form bubble messages (UICollectionMessage from backend)
+  // These are rendered inline in the chat via FormOnlyBubble component
+  if (data.is_form_bubble && data.infos_to_collect?.length > 0) {
+    console.log('[bot.js] Form bubble detected, fields to collect:', data.infos_to_collect);
+
+    // Store the pending operation for resumption after form submit
+    if (data.pending_operation) {
+      store.setPendingFieldCollection({
+        fields: data.infos_to_collect,
+        operation: data.pending_operation,
+      });
+    }
+
+    // Determine which form to show based on fields to collect
+    const fieldToCollect = data.infos_to_collect[0];
+    const formName = fieldToCollect === 'purpose' ? 'purposeForm' : `${fieldToCollect}Form`;
+
+    // Create a message with actions structure for FormOnlyBubble to render
+    // FormOnlyBubble expects message.actions with prerequisite.name for form name
+    const formBubbleMessage = {
+      id: message_id,
+      conversation_id: conversationId,
+      sender_id: null,
+      content: "",  // No text content - form provides the UI
+      delivered: false,
+      viewed: false,
+      sent_at: null,
+      message_type: "bot",
+      metadata: { items: [] },
+      tags: {},
+      tenantId: null,
+      is_form_bubble: true,
+      // Actions structure expected by FormOnlyBubble
+      actions: {
+        [`collect_${fieldToCollect}`]: {
+          prerequisite: { name: formName, where: "inline" },
+          frontend_params: { text: { en: "Continue", fr: "Continuer" } },
+          backend_params: { pending_operation: data.pending_operation },
+        },
+      },
+    };
+
+    // Add message to chat - Main.vue will route to FormOnlyBubble
+    store.setMessagesData(formBubbleMessage);
+
+    // Stop typing indicator since we're waiting for user input
+    store.setStatusTyping(false);
+    return;
+  }
+
   let text_answer = data.text_answer;
 
   let formatted = {
@@ -92,8 +142,19 @@ function processMessage({ data, store, message_id, conversationId }) {
     suggestions: data.suggestions || [],
     actions: data.actions ? formatActions(data.actions, getGlobalLocale()) : [],
     search_criteria: data.search_criteria || [],
+
+    // Paginated search fields
+    search_id: data.search_id || null,
+    total_count: data.total_count || null,
+    has_more: data.has_more || false,
   };
   store.setMessagesData(formatted);
+
+  // Track seen items for reference tool resolution
+  if (data.items?.elements?.length > 0) {
+    const itemIds = data.items.elements.map((item) => item.item_id);
+    store.addSeenItemIds(itemIds);
+  }
 }
 
 function convertMarkdownToHtml(data) {

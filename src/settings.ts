@@ -12,6 +12,13 @@ export const upstreamURL = (hostname: string, route: string) => {
   return new URL(route, url)
 }
 
+/** Reporting never permits HTTP, including in development mock mode. */
+export const reportingURL = (hostname: string) => {
+  const url = upstreamURL(hostname, '/api/reporting')
+  if (url.protocol !== 'https:') throw new Error('Reporting requires an HTTPS origin.')
+  return url
+}
+
 export const suggestionsSchema = z.array(z.object({
   id: z.union([z.string(), z.number()]),
   group_id: z.union([z.string(), z.number()]),

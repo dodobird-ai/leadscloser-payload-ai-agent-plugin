@@ -45,6 +45,7 @@ import { useBotStore } from '@/store/bot';
 import { ElButton, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import { Plus, ChatDotRound, MoreFilled, Edit, Delete, ChatLineRound } from '@element-plus/icons-vue';
 import { IconMessageCirclePlus } from '@tabler/icons-vue';
+import { isSilentForm, autoSubmitSilentForm } from '@/hooks/formHooks';
 
 export default {
   name: 'RecentChatComponent',
@@ -71,7 +72,7 @@ export default {
     };
   },
   computed: {
-    ...mapState(useBotStore, ['botParameters', 'conversations', 'statusChatMode', 'session', 'messagesDataForCurrentConversation', 'statusTyping']),
+    ...mapState(useBotStore, ['botParameters', 'conversations', 'statusChatMode', 'session', 'messagesDataForCurrentConversation', 'statusTyping', 'dynamicForms']),
     groupedConversations() {
       const today = new Date();
       const yesterday = new Date(today);
@@ -123,8 +124,17 @@ export default {
       // Clear the current conversation if there are messages
       if (this.messagesDataForCurrentConversation.length > 1 && !this.statusTyping) {
         await this.clearConversation();
-        // Show the locale form popup for new chats
-        this.toggleDynamicForm('localeForm');
+
+        // Check if localeForm is silent (auto-submit) or needs to be shown
+        const localeFormConfig = this.dynamicForms?.localeForm;
+
+        if (isSilentForm(localeFormConfig)) {
+          // For silent forms, auto-submit with detected values
+          await autoSubmitSilentForm('localeForm', localeFormConfig, useBotStore());
+        } else if (localeFormConfig?.schema) {
+          // Show the locale form popup for new chats (only if schema is available)
+          this.toggleDynamicForm('localeForm');
+        }
       }
 
       // Create a new conversation

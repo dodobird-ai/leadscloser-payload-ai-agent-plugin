@@ -1,5 +1,5 @@
 <template>
-  <div v-if="formConfig">
+  <div v-if="formConfig && formConfig.schema">
     <div v-if="showTitle" class="form-header">
       <component :is="titleComponent" v-if="formConfig.title" :class="titleClass">
         {{ getLocalizedText(formConfig.title) }}
@@ -10,7 +10,7 @@
     </div>
 
     <Vueform :key="`${formName}:${locale}`" :locale="locale" ref="form$" addClass="vf-my-form" :schema="formSchema"
-      :endpoint="false" @submit="submit" />
+      :endpoint="false" :display-errors="false" validate-on="submit|blur" @submit="submit" />
 
     <div v-html="dynamicStyles"></div>
   </div>
@@ -20,6 +20,7 @@
 import { useBotStore } from "@/store/bot";
 import { mapState, mapActions } from "pinia";
 import { nextTick } from "vue";
+import { executeHooks, getFormHooks, hasHooks } from "@/hooks/formHooks";
 
 export default {
   name: "DynamicForm",
@@ -68,6 +69,17 @@ export default {
   mounted() {
     this.setFormConfig();
   },
+  watch: {
+    // Watch for when backend forms are loaded and update formConfig
+    'dynamicForms': {
+      handler() {
+        if (!this.formConfig?.schema && this.dynamicForms[this.formName]?.schema) {
+          this.setFormConfig();
+        }
+      },
+      deep: true,
+    },
+  },
   computed: {
     ...mapState(useBotStore, [
       "dynamicForms",
@@ -104,7 +116,7 @@ export default {
       return this.$t('btn.submit');
     },
     formSchema() {
-      if (!this.formConfig) return {};
+      if (!this.formConfig?.schema) return {};
       return {
         ...this.formConfig.schema,
         submit: {
@@ -115,6 +127,7 @@ export default {
           size: 'sm',
           full: true,
           disabled: this.isSubmitting,
+          bottom: 10,
         },
       };
     },
@@ -183,32 +196,47 @@ export default {
     setFormConfig() {
       if (this.dynamicForms[this.formName]) {
         this.formConfig = this.dynamicForms[this.formName];
+
+        // Only set nationality default if schema is loaded from backend
         if (
           this.geolocationNationality &&
-          this.formConfig.schema.nationality &&
+          this.formConfig.schema?.nationality &&
           this.formConfig.schema.nationality.type === "nationality"
         ) {
           this.formConfig.schema.nationality.default =
             this.geolocationNationality;
         }
 
-        nextTick(() => {
-          this.loadDefaultData();
-          // Load persisted form values after form is mounted
-          this.loadPersistedValues();
-        });
+        // Only load data if schema is available
+        if (this.formConfig.schema) {
+          nextTick(() => {
+            this.loadDefaultData();
+            // Load persisted form values after form is mounted
+            this.loadPersistedValues();
+          });
+        }
       }
     },
 
     loadDefaultData() {
+      const formSchema = this.dynamicForms[this.formName]?.schema;
+      if (!formSchema) return;
+
       if (this.formName === "localeForm") {
+        // localeForm now only has hidden auto-detected fields
+        // purpose is handled separately via inference or purposeForm
         const defaultData = {
           language: this.$i18n.locale,
-          currency: this.dynamicForms.localeForm.schema.currency.default,
-          is_foreigner: this.dynamicForms.localeForm.schema.is_foreigner.default,
-          purpose: this.dynamicForms.localeForm.schema.purpose.default
+          currency: formSchema.currency?.default || "USD",
+          is_foreigner: formSchema.is_foreigner?.default || false,
         };
         this.setDynamicFormData("localeForm", defaultData);
+      } else if (this.formName === "purposeForm") {
+        // purposeForm is shown inline when purpose can't be inferred
+        const defaultData = {
+          purpose: formSchema.purpose?.default || "Buy",
+        };
+        this.setDynamicFormData("purposeForm", defaultData);
       } else if (this.formName === "contactForm") {
         // Only set default data if no data exists (not persisted from previous session)
         if (!this.dynamicForms.contactForm.data || Object.keys(this.dynamicForms.contactForm.data).length === 0) {
@@ -217,7 +245,7 @@ export default {
             last_name: "",
             email: "",
             phone_number: "",
-            nationality: this.dynamicForms.contactForm.schema.nationality?.default || "",
+            nationality: formSchema.nationality?.default || "",
           };
           this.setDynamicFormData("contactForm", defaultData);
         }
@@ -241,27 +269,40 @@ export default {
 
     async submit(form$) {
       this.isSubmitting = true;
+      const form$Ref = this.$refs.form$;
+      if (form$Ref) form$Ref.submitting = true;
+
       const data = form$.data;
       this.setDynamicFormData(this.formName, data);
 
       if (this.useStoreActions) {
-        // Popup form behavior
-        const submitCallback = this.formConfig.submit;
-        if (submitCallback) {
-          const form$ = this.$refs.form$;
-          form$.submitting = true;
-          try {
-            await submitCallback(data);
-          } finally {
-            form$.submitting = false;
-            this.isSubmitting = false;
+        // Popup form behavior - uses hooks or legacy submit callback
+
+        try {
+          // Check if form has hooks configured
+          if (hasHooks(this.formConfig, "after_submit")) {
+            // Execute hooks from form config
+            const afterSubmitHooks = getFormHooks(this.formConfig, "after_submit");
+            const botStore = useBotStore();
+            await executeHooks(afterSubmitHooks, this.formName, data, botStore);
+          } else if (this.formConfig.submit) {
+            // Fallback to legacy submit callback
+            await this.formConfig.submit(data, this.formConfig);
           }
-        } else {
+        } catch (err) {
+          console.error(`[DynamicForm] Submit error for ${this.formName}:`, err);
+        } finally {
+          form$Ref.submitting = false;
           this.isSubmitting = false;
         }
       } else {
-        // Inline form behavior
+        // Inline form behavior - execute pending action
         if (this.pendingAction) {
+          // Optimistic: close form and show success immediately, backend continues in background
+          this.$emit('form-completed');
+          if (form$Ref) form$Ref.submitting = false;
+          this.isSubmitting = false;
+
           try {
             this.setStatusTyping(true);
             const res = await this.actionExecuteBackend({
@@ -271,20 +312,18 @@ export default {
 
             if (res.status === 200) {
               this.processMessage(res.data);
-              this.$emit('form-completed');
             } else {
               this.setStatusTyping(false);
               this.responseWithErrorMessage();
-              this.isSubmitting = false;
             }
           } catch (err) {
             this.setStatusTyping(false);
             this.responseWithErrorMessage();
-            this.isSubmitting = false;
           }
 
           this.resetPendingAction();
         } else {
+          if (form$Ref) form$Ref.submitting = false;
           this.isSubmitting = false;
         }
       }

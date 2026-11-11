@@ -5,6 +5,7 @@
       <p class="mb-0 text-success">Form completed successfully!</p>
     </div>
     <DynamicForm
+      v-if="!isCompleted"
       :form-name="formName"
       :pending-action="pendingAction"
       :action-text="actionText"
@@ -12,8 +13,8 @@
       title-class="p-0 m-0"
       subtitle-component="p"
       subtitle-class="small text-muted mt-1 mb-0"
-      :use-store-actions="false"
-      @form-completed="$emit('form-completed')"
+      :use-store-actions="isFieldCollectionForm"
+      @form-completed="onFormCompleted"
     />
   </div>
 </template>
@@ -45,6 +46,30 @@ export default {
     },
   },
   emits: ['form-completed'],
+  computed: {
+    /**
+     * Determine if this is a field collection form (e.g., purposeForm) vs an action form.
+     *
+     * Field collection forms:
+     * - Have synthetic action keys like "collect_purpose" (created by bot.js)
+     * - Use hooks (resume_pending_operation) to continue the search flow
+     * - Need useStoreActions=true
+     *
+     * Action forms:
+     * - Have real action keys like "send_buyers_guide"
+     * - Call backend action endpoint directly
+     * - Need useStoreActions=false
+     */
+    isFieldCollectionForm() {
+      const actionKey = this.pendingAction?.key || '';
+      return actionKey.startsWith('collect_');
+    },
+  },
+  methods: {
+    onFormCompleted() {
+      this.$emit('form-completed');
+    },
+  },
 };
 </script>
 

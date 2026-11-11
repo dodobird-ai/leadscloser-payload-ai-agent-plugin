@@ -1,15 +1,11 @@
 import { publicOrigin } from './origin.ts'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { z } from 'zod'
-import { configurationProblem, upstreamURL } from './settings.ts'
+import { configurationProblem, reportingURL } from './settings.ts'
 
 export interface ReportingOptions {
   /** Required: host's validated, current analytics consent. Defaults to denied. */
   hasConsent?: (req: PayloadRequest) => boolean | Promise<boolean>
-  /** Optional server-only overrides when reporting uses a separate backend/key. */
-  apiHostname?: string
-  apiKey?: string
-  tenantId?: string
 }
 const identifier = z.string().min(1).max(200).regex(/^[\w.:-]+$/)
 const product = z.object({
@@ -67,13 +63,20 @@ export function createReportingEndpoint(options: ReportingOptions = {}): Endpoin
       window.count++; windows.set(session.data, window)
       const settings = await req.payload.findGlobal({ slug: 'chatbot-settings', overrideAccess: true })
       if (!settings.enabled || configurationProblem(settings)) return reply(503, { error: 'Chatbot unavailable' })
-      const apiKey = options.apiKey || settings.apiKey!
+      const reportingOrigin = settings.reportingOrigin?.trim()
+      const apiKey = settings.reportingApiKey?.trim()
+      if (!reportingOrigin || !apiKey) {
+        req.payload.logger?.warn('Chatbot reporting skipped: reporting origin or reporting API key is missing in Chatbot Settings.')
+        return reply(202, { success: true, skipped: true })
+      }
+      const target = reportingURL(reportingOrigin)
+      const tenantId = settings.reportingTenantId?.trim()
       const headers: Record<string, string> = { Authorization: apiKey, 'Content-Type': 'application/json', 'X-Client-User-Agent': req.headers.get('user-agent') || '' }
-      if (options.tenantId) headers['X-TENANT-ID'] = options.tenantId
+      if (tenantId) headers['X-TENANT-ID'] = tenantId
       const event = parsed.data
       const conversation = event.conversation_id || event.products[0].conversation_id
       const ga = cookie(req, '_ga').split('.').slice(2).join('.')
-      const response = await fetch(upstreamURL(options.apiHostname || settings.apiHostname!, '/api/reporting'), {
+      const response = await fetch(target, {
         method: 'POST', headers, redirect: 'error', signal: AbortSignal.timeout(2000),
         body: JSON.stringify({ ...event, campaign: settings.campaignId, channel_type: 'website', channel_name: new URL(origin).host,
           session_id: session.data,

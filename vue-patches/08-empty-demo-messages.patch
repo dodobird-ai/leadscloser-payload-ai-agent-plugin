@@ -1,0 +1,4 @@
+--- /dev/null
++++ b/src/helpers/fake-messages.js
+@@ -0,0 +1 @@
++export const fakeMessages = [];

@@ -1,9 +1,11 @@
+import { withActionAttribution } from '@/services/attribution.mjs';
 import { defineStore } from "pinia";
 import { uuidv7 } from "uuidv7";
 import { $api } from "@/services/api";
 import { botHelper } from "../helpers/bot";
+import { getGlobalLocale } from "@/i18n";
 import Telemetry from "../helpers/telemetry";
-import { formConfigs } from "./formConfigs";
+import { mergeBackendForms } from "./formConfigs";
 import geolocationService from "@/services/geolocation";
 const maxAttempts = 3;
 const telemetry = new Telemetry();
@@ -17,7 +19,8 @@ export const useBotStore = defineStore("bot", {
       maintenanceMode: false,
       smallScreen: false,
       chatMode: true,
-      useFakeResponseOnError: false // Dev mode: use fake message instead of error message
+      useFakeResponseOnError: false, // Dev mode: use fake message instead of error message
+      skipAutoScroll: false, // When true, Content.vue won't auto-scroll on message data changes
     },
     geo: {
       userCountry: null, // User's detected country code (e.g., "MU", "US")
@@ -83,28 +86,12 @@ export const useBotStore = defineStore("bot", {
       }
     },
     dynamicForms: {
-      localeForm: {
-        data: null,
-        // {
-        // language: "",
-        // currency: "",
-        // },
-        ...formConfigs.localeForm,
-      },
-      contactForm: {
-        data: null,
-        // {
-        // name: "",
-        // email: "",
-        // phone: "",
-        // message: "",
-        // },
-        ...formConfigs.contactForm,
-      },
-      emailOnlyForm: {
-        data: null,
-        ...formConfigs.emailOnlyForm,
-      },
+      // Form configs are loaded from backend via fetchFormsConfig()
+      // Each form will have: { data: null, schema: {...}, hooks: {...}, submit: fn }
+      localeForm: { data: null },
+      contactForm: { data: null },
+      emailOnlyForm: { data: null },
+      purposeForm: { data: null },  // Inline form for purpose collection when not inferred
       show: false,
       currentForm: "",
     },
@@ -115,7 +102,13 @@ export const useBotStore = defineStore("bot", {
         backendParams: {},
       },
     },
+    // Pending field collection state - used when backend requests inline form input
+    pendingFieldCollection: {
+      fields: [],  // Fields to collect, e.g., ['purpose']
+      operation: null,  // Operation to resume after collection, e.g., { type: 'search', intent: {...} }
+    },
     botParameters: {
+      tenantName: "", // Tenant name for API calls (e.g., "sothebys-realty-mu")
       greetingMessage: "",
       primaryColor: "#4356e0",
       title: "LeadsCloser",
@@ -123,7 +116,7 @@ export const useBotStore = defineStore("bot", {
       campaignId: "",
       autoFetchRecommendation: "on",
       cfSiteKey: "",
-      inputSuggestionsJSON: {},
+      inputSuggestionsJSON: [],
       apiHostname: "",
       inventoryCode: "",
       view: "both",
@@ -144,10 +137,15 @@ export const useBotStore = defineStore("bot", {
       exitIntentShown: false,
       formDismissed: false,
     },
+    floatingBubblesDismissed: false,  // Track if user dismissed floating bubbles
+    // Paginated search: track item IDs the user has actually seen (scrolled past)
+    // Sent with each message so the LLM reference tools only resolve seen items
+    seenItemIds: [],
   }),
 
   persist: [
     {
+      key: "bot-session",
       storage: sessionStorage,
       pick: [
         // "status.active" removed - prevents bot from reopening on page navigation
@@ -157,10 +155,13 @@ export const useBotStore = defineStore("bot", {
         "dynamicForms.localeForm",
         "dynamicForms.contactForm",
         "dynamicForms.emailOnlyForm",
+        "dynamicForms.purposeForm",  // Purpose is remembered for session
         "emailCaptureTracking",
+        "floatingBubblesDismissed",  // Remember if floating bubbles were dismissed
       ],
     },
     {
+      key: "bot-local",
       storage: localStorage,
       pick: ["conversations", "messages.data"]
     }
@@ -210,22 +211,11 @@ export const useBotStore = defineStore("bot", {
         },
       },
       dynamicForms: {
-        localeForm: {
-          data: {
-            // language: "",
-            // currency: "",
-          },
-          ...formConfigs.localeForm,
-        },
-        contactForm: {
-          data: {
-            // name: "",
-            // email: "",
-            // phone: "",
-            // message: "",
-          },
-          ...formConfigs.contactForm,
-        },
+        // Form configs loaded from backend via fetchFormsConfig()
+        localeForm: { data: null },
+        contactForm: { data: null },
+        emailOnlyForm: { data: null },
+        purposeForm: { data: null },  // Inline form for purpose collection
         currentForm: "",
         show: false,
       },
@@ -236,6 +226,11 @@ export const useBotStore = defineStore("bot", {
           backendParams: {},
         },
       },
+      // Pending field collection state - used when backend requests inline form input
+      pendingFieldCollection: {
+        fields: [],
+        operation: null,
+      },
       botParameters: {
         greetingMessage: "",
         primaryColor: "",
@@ -244,7 +239,7 @@ export const useBotStore = defineStore("bot", {
         campaignId: "",
         autoFetchRecommendation: "on",
         cfSiteKey: "",
-        inputSuggestionsJSON: {},
+        inputSuggestionsJSON: [],
         apiHostname: "",
         inventoryCode: "",
         view: "both",
@@ -479,13 +474,33 @@ export const useBotStore = defineStore("bot", {
       this.actions.pending = this.$stateDefault.actions.pending;
     },
 
+    /**
+     * Set pending field collection state
+     * Called when backend requests inline form input (UICollectionMessage)
+     * @param {Object} payload - { fields: string[], operation: object }
+     */
+    setPendingFieldCollection(payload) {
+      this.pendingFieldCollection = payload;
+    },
+
+    /**
+     * Clear pending field collection state
+     */
+    clearPendingFieldCollection() {
+      this.pendingFieldCollection = {
+        fields: [],
+        operation: null,
+      };
+    },
+
     setCfStatus(key, value) {
       this.session.cfStatus[key] = value;
     },
 
     setUrlParams() {
       const params = new URLSearchParams(window.location.search);
-      const defaultTags = process.env.NODE_ENV === "development" ? ["vue_development"] : [];
+      const userTags = window.bot_parameters?.userTags || [];
+      const defaultTags = process.env.NODE_ENV === "development" ? ["vue_development"] : userTags;
       this.session.urlParams = {
         fullscreen: Object.fromEntries(params).chatFullscreen === "true",
         inventory: Object.fromEntries(params).inventory || this.botParameters.inventoryCode || "",
@@ -516,6 +531,14 @@ export const useBotStore = defineStore("bot", {
           this.botParameters[key] = newValue;
         }
       });
+
+      // Fetch backend-driven forms config
+      // Use provided tenantName or fall back to default for development
+      const tenantName = payload.tenantName || this.botParameters.tenantName || "sothebys-realty-mu";
+      if (tenantName) {
+        this.botParameters.tenantName = tenantName;
+        this.fetchFormsConfig(tenantName);
+      }
     },
 
     // passSuggestion(payload) {
@@ -570,6 +593,7 @@ export const useBotStore = defineStore("bot", {
       messageObject.message_id = messageObject.id
       messageObject.tags = this.session.urlParams.tags
       messageObject.inventory = this.session.urlParams.inventory
+      messageObject.seen_item_ids = this.seenItemIds
 
       this.setStatusTyping(true);
 
@@ -578,7 +602,7 @@ export const useBotStore = defineStore("bot", {
         let attempt = 0;
 
         while (attempt < maxAttempts) {
-          const isInternal = window.location.href.includes('/internal/');
+          const isInternal = window.location.href.includes('/internal/') || window.location.href.includes('/crm');
           const apiEndpoint = isInternal
             ? $api.backend.conversation['internal-message']
             : $api.backend.conversation.message;
@@ -649,12 +673,15 @@ export const useBotStore = defineStore("bot", {
               partial_json += chunk;
               continue;
             }
-            if (!data.text_answer) {
+            // Skip empty messages unless they're form bubbles (which intentionally have no text)
+            if (!data.text_answer && !data.is_form_bubble) {
               continue;
             }
+            // For non-form messages, fall back to previous text_answer if empty
             if (
-              !Object.keys(data).includes("text_answer") ||
-              data.text_answer == ""
+              !data.is_form_bubble &&
+              (!Object.keys(data).includes("text_answer") ||
+              data.text_answer == "")
             ) {
               data["text_answer"] = prevTextAnswer;
             }
@@ -811,7 +838,7 @@ export const useBotStore = defineStore("bot", {
               message_id: uuidv7(),
               session_id: this.session.sessionId,
               action: {
-                params: params,
+                params: withActionAttribution(url, params, getGlobalLocale()),
               },
               collected_infos: {
                 ...this.dynamicForms.contactForm.data,
@@ -877,6 +904,96 @@ export const useBotStore = defineStore("bot", {
       });
     },
 
+    // Paginated search: clear items for a message (used when re-sorting)
+    clearMessageItems(messageId) {
+      const message = this.messages.data.find((m) => m.id === messageId);
+      if (message) {
+        message.metadata.items = [];
+      }
+    },
+
+    // Paginated search: track which item IDs the user has seen
+    addSeenItemIds(itemIds) {
+      for (const id of itemIds) {
+        if (!this.seenItemIds.includes(id)) {
+          this.seenItemIds.push(id);
+        }
+      }
+    },
+
+    // Paginated search: fetch next page of results
+    async fetchSearchPage({ searchId, page, sort, direction, messageId }) {
+      const maxAttempts = 3;
+      let attempt = 1;
+
+      while (attempt <= maxAttempts) {
+        try {
+          const conversationId = this.session.conversationId;
+          const params = new URLSearchParams({
+            conversation_id: conversationId,
+            page: String(page),
+          });
+          if (sort) params.append("sort", sort);
+          if (direction) params.append("direction", direction);
+
+          const res = await $api.backend.search.makeRequest({
+            url: `${searchId}?${params.toString()}`,
+          });
+
+          if (res.status === 200) {
+            const data = res.data;
+
+            // Find the message and append items
+            const message = this.messages.data.find((m) => m.id === messageId);
+            if (message && data.items?.elements) {
+              const locale = getGlobalLocale();
+              const newItems = data.items.elements.map((item) => ({
+                sku: item.sku || item.item_id,
+                name: item.name,
+                brand: null,
+                price: item.price,
+                actions: botHelper.formatActions(item.actions, locale),
+                item_id: item.item_id,
+                category: item.category,
+                currency: item.currency,
+                item_url: item.item_url,
+                image_url: item.image_url,
+                ai_comment: item.ai_comment,
+                description: item.description,
+                sub_category: item.sub_category,
+                meta_category: item.meta_category,
+                description_metadata: item.description_metadata,
+              }));
+              message.metadata.items.push(...newItems);
+              message.has_more = data.has_more;
+              message.total_count = data.total_count;
+
+              // Track newly seen items
+              this.addSeenItemIds(newItems.map((item) => item.item_id));
+            }
+
+            return data;
+          }
+        } catch (err) {
+          if (
+            err.response &&
+            (err.response.status === 401 || err.response.status === 403)
+          ) {
+            if (attempt === maxAttempts) {
+              console.error("[fetchSearchPage] Auth failed after retries");
+              return null;
+            }
+            attempt++;
+            await botHelper.refreshToken(this);
+          } else {
+            console.error("[fetchSearchPage] Failed:", err);
+            return null;
+          }
+        }
+      }
+      return null;
+    },
+
     createConversation({ agent_id, tenant_id, status = "active", tags = [] } = {}) {
       const conversationId = this.session.conversationId || uuidv7();
 
@@ -913,6 +1030,73 @@ export const useBotStore = defineStore("bot", {
 
     markFormDismissed() {
       this.emailCaptureTracking.formDismissed = true;
+    },
+
+    setFloatingBubblesDismissed(value) {
+      this.floatingBubblesDismissed = value;
+    },
+
+    /**
+     * Fetch forms configuration from backend and merge with defaults
+     * @param {string} tenantName - The tenant name (e.g., "sothebys-realty-mu")
+     */
+    async fetchFormsConfig(tenantName) {
+      try {
+        const response = await $api.backend.tenants.makeRequest({
+          method: "get",
+          url: `${tenantName}/forms`,
+        });
+
+        if (response.status === 200 && response.data) {
+          /** @type {import('@/types/forms-api').FormsConfigResponse} */
+          const backendForms = response.data;
+          this.applyBackendForms(backendForms);
+          console.log("[Bot Store] Forms loaded from backend:", Object.keys(backendForms.forms || {}));
+        }
+      } catch (error) {
+        console.warn("[Bot Store] Failed to fetch forms from backend, using defaults:", error.message);
+        // Continue with default forms - this is not a critical error
+      }
+    },
+
+    /**
+     * Merge backend forms configuration with existing dynamic forms
+     * Uses mergeBackendForms from formConfigs to attach submit handlers
+     * @param {import('@/types/forms-api').FormsConfigResponse} backendForms - Forms config from backend
+     */
+    applyBackendForms(backendForms) {
+      if (!backendForms || !backendForms.forms) return;
+
+      // Use formConfigs merger to add submit handlers to backend forms
+      const formsWithHandlers = mergeBackendForms(backendForms);
+
+      // Merge each form with existing form data
+      Object.entries(formsWithHandlers).forEach(([formName, formConfig]) => {
+        const existingData = this.dynamicForms[formName]?.data || null;
+        this.dynamicForms[formName] = {
+          ...formConfig,
+          data: existingData,
+        };
+      });
+
+      // Store exit_intent and buttons config in botParameters for component access
+      if (backendForms.exit_intent) {
+        this.botParameters.exitIntent = backendForms.exit_intent;
+      }
+      if (backendForms.buttons) {
+        this.botParameters.formButtons = backendForms.buttons;
+      }
+
+      console.log("[Bot Store] Backend forms merged successfully");
+    },
+
+    /**
+     * Get form configuration by name
+     * @param {string} formName - The form name
+     * @returns {object|null} - The form configuration or null
+     */
+    getFormConfig(formName) {
+      return this.dynamicForms[formName] || null;
     },
   },
 });

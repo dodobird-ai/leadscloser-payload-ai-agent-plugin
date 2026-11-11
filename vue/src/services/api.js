@@ -130,6 +130,7 @@ const buildRoutes = (routes, instance, parentPath = "", rootKey = "") => {
         : ""
       : `${parentPath}/${serviceKey}`;
 
+
     if (isLeaf) {
       const ServiceClass = isFetch ? FetchApiService : AxiosApiService;
       const serviceInstance = isFetch ? backendFetchInstance : instance;
@@ -162,6 +163,8 @@ const $api = buildApis({
       },
       telemetry: {},
       action: {},
+      search: {},  // For /search/{search_id}?page=2&sort=price&direction=ASC
+      tenants: {},  // For /tenants/{tenant}/forms, use: $api.backend.tenants.makeRequest({ url: "{tenant}/forms" })
     },
   },
 });

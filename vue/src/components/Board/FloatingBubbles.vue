@@ -6,14 +6,15 @@
 )
   .floating-bubbles__close-btn(@click="handleClose" title="Close suggestions")
     | ✕
-  .floating-bubble(
-    v-for="(question, index) in displayedQuestions"
-    :key="typeof question === 'string' ? question : question.id"
-    :class="`floating-bubble--${index}`"
-    @click="handleBubbleClick(question)"
-  )
-    .floating-bubble__text {{ getQuestionText(question) }}
-    .floating-bubble__arrow ↑
+  .floating-bubbles__scroll
+    .floating-bubble(
+      v-for="(question, index) in displayedQuestions"
+      :key="typeof question === 'string' ? question : question.id"
+      :class="`floating-bubble--${index}`"
+      @click="handleBubbleClick(question)"
+    )
+      .floating-bubble__text {{ getQuestionText(question) }}
+      .floating-bubble__arrow ↑
 </template>
 
 <script>
@@ -32,12 +33,7 @@ export default {
     return {
       isScrolling: false,
       scrollTimeout: null,
-      dismissed: false,
-      // Mobile auto-show
-      mobileAutoShowTimer: null,
-      mobileAutoHideTimer: null,
-      mobileAutoShowing: false,
-      mobileCurrentIndex: -1,
+      nudgeInterval: null,
     };
   },
   computed: {
@@ -47,6 +43,7 @@ export default {
       "botParameters",
       "dynamicForms",
       "messagesDataForCurrentConversation",
+      "floatingBubblesDismissed",
     ]),
 
     // Get backend suggestions from the last message
@@ -66,27 +63,14 @@ export default {
       return this.botParameters.floatingQuestions || [];
     },
 
-    // Show 1 bubble on mobile (cycling sequentially), 3 when typing, all on desktop
+    // Show all bubbles on both mobile and desktop
     displayedQuestions() {
-      if (this.statusSmallScreen) {
-        if (this.mobileAutoShowing && !this.isMobileTyping) {
-          const idx = this.mobileCurrentIndex % this.floatingQuestions.length;
-          return [this.floatingQuestions[idx]];
-        }
-        return this.floatingQuestions.slice(0, 3);
-      }
       return this.floatingQuestions;
     },
 
-    // Show bubbles on desktop always, on mobile when auto-showing or typing
+    // Show bubbles unless user dismissed them
     shouldShowBubbles() {
-      if (this.dismissed) {
-        return false;
-      }
-      if (this.statusSmallScreen) {
-        return this.mobileAutoShowing || this.isMobileTyping;
-      }
-      return true; // Always show on desktop
+      return !this.floatingBubblesDismissed;
     },
 
     locale() {
@@ -96,40 +80,28 @@ export default {
     },
   },
   watch: {
-    statusActive(newValue) {
-      if (newValue) {
-        this.stopMobileAutoShow();
-      } else if (this.statusSmallScreen && !this.dismissed) {
-        this.startMobileAutoShow();
-      }
+    statusActive(active) {
+      this.stopNudgeLoop();
+      if (!active && !this.floatingBubblesDismissed) this.$nextTick(this.startNudgeLoop);
     },
-    statusSmallScreen(newValue) {
-      if (newValue && !this.mobileAutoShowTimer && !this.dismissed) {
-        window.addEventListener('scroll', this.handleScroll, { passive: true });
-        this.startMobileAutoShow();
-      }
-    },
-    floatingQuestions(newValue) {
-      if (this.statusSmallScreen && newValue.length > 0 && !this.mobileAutoShowTimer && !this.dismissed) {
-        this.startMobileAutoShow();
-      }
+    floatingBubblesDismissed(dismissed) {
+      if (dismissed) this.stopNudgeLoop();
     },
   },
   mounted() {
-    if (this.statusSmallScreen) {
-      window.addEventListener('scroll', this.handleScroll, { passive: true });
-      this.$nextTick(() => {
-        this.startMobileAutoShow();
-      });
-    }
+    // Listen for scroll to hide bubbles temporarily
+    window.addEventListener('scroll', this.handleScroll, { passive: true });
+
+    // Nudge the carousel to hint there are more pills (if scrollable)
+    this.$nextTick(() => {
+      setTimeout(() => this.startNudgeLoop(), 800);
+    });
   },
   beforeUnmount() {
-    if (this.statusSmallScreen) {
-      window.removeEventListener('scroll', this.handleScroll);
-      if (this.scrollTimeout) {
-        clearTimeout(this.scrollTimeout);
-      }
-      this.stopMobileAutoShow();
+    window.removeEventListener('scroll', this.handleScroll);
+    this.stopNudgeLoop();
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
     }
   },
   methods: {
@@ -160,58 +132,48 @@ export default {
 
     handleBubbleClick(question) {
       const text = this.getQuestionText(question);
-      this.stopMobileAutoShow();
       this.$emit("bubble-click", text);
     },
 
+    startNudgeLoop() {
+      this.stopNudgeLoop();
+      if (this.statusActive || this.floatingBubblesDismissed) return;
+      this.nudgeScroll();
+      this.nudgeInterval = setInterval(() => this.nudgeScroll(), 3000);
+    },
+
+    stopNudgeLoop() {
+      if (this.nudgeInterval) {
+        clearInterval(this.nudgeInterval);
+        this.nudgeInterval = null;
+      }
+    },
+
+    nudgeScroll() {
+      const scrollEl = this.$el?.querySelector?.('.floating-bubbles__scroll');
+      if (!scrollEl) return;
+      // Only nudge if the container is actually horizontally scrollable
+      if (scrollEl.scrollWidth <= scrollEl.clientWidth) return;
+      // If user has manually scrolled, stop nudging
+      if (scrollEl.scrollLeft > 5) {
+        this.stopNudgeLoop();
+        return;
+      }
+      // Temporarily disable scroll-snap so it doesn't fight the nudge
+      scrollEl.style.scrollSnapType = 'none';
+      scrollEl.scrollTo({ left: 60, behavior: 'smooth' });
+      setTimeout(() => {
+        scrollEl.scrollTo({ left: 0, behavior: 'smooth' });
+        // Re-enable snap after scrolling back
+        setTimeout(() => {
+          scrollEl.style.scrollSnapType = '';
+        }, 400);
+      }, 600);
+    },
+
     handleClose() {
-      this.dismissed = true;
-      this.stopMobileAutoShow();
-    },
-
-    // Mobile auto-show: periodically show 1 bubble, cycling sequentially
-    startMobileAutoShow() {
-      if (this.dismissed || !this.floatingQuestions.length || this.statusActive) return;
-
-      this.stopMobileAutoShow();
-
-      this.mobileAutoShowTimer = setTimeout(() => {
-        this.showNextBubble();
-        this.scheduleMobileAutoShow();
-      }, 10000);
-    },
-
-    scheduleMobileAutoShow() {
-      if (this.dismissed || this.statusActive) return;
-
-      this.mobileAutoShowTimer = setTimeout(() => {
-        this.showNextBubble();
-        this.scheduleMobileAutoShow();
-      }, 10000);
-    },
-
-    showNextBubble() {
-      if (this.dismissed || this.statusActive || this.isScrolling || !this.floatingQuestions.length) return;
-
-      // Cycle sequentially: 0 → 1 → 2 → 0 → 1 → ...
-      this.mobileCurrentIndex = (this.mobileCurrentIndex + 1) % this.floatingQuestions.length;
-      this.mobileAutoShowing = true;
-
-      this.mobileAutoHideTimer = setTimeout(() => {
-        this.mobileAutoShowing = false;
-      }, 10000);
-    },
-
-    stopMobileAutoShow() {
-      if (this.mobileAutoShowTimer) {
-        clearTimeout(this.mobileAutoShowTimer);
-        this.mobileAutoShowTimer = null;
-      }
-      if (this.mobileAutoHideTimer) {
-        clearTimeout(this.mobileAutoHideTimer);
-        this.mobileAutoHideTimer = null;
-      }
-      this.mobileAutoShowing = false;
+      const store = useBotStore();
+      store.setFloatingBubblesDismissed(true);
     },
   },
 };
@@ -225,26 +187,64 @@ export default {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 12px; // Space between bubbles
   align-items: flex-end;
   pointer-events: none;
   transition: opacity 0.3s ease, transform 0.3s ease;
 
-  // Mobile layout - centered above the input
+  // Mobile layout - horizontal scrollable carousel
   &--mobile {
     left: 16px;
     right: 16px;
     transform: none;
     bottom: 95px !important; // Position above the "Ask Max AI..." button with spacing
-    align-items: center;
     max-width: 600px;
     margin: 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+
+    .floating-bubbles__close-btn {
+      position: static;
+      margin-bottom: 0;
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+      z-index: 1;
+    }
+
+    .floating-bubbles__scroll {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: stretch;
+      padding-right: 0; // let last pill peek past edge
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none; // hide scrollbar Firefox
+      width: 100%;
+      pointer-events: auto; // re-enable touch/scroll on the carousel
+      &::-webkit-scrollbar { display: none; } // hide scrollbar Webkit
+    }
+
+    .floating-bubble__arrow {
+      display: none;
+    }
   }
 
   // Hidden state when scrolling
   &--hidden {
     opacity: 0;
     transform: translateY(20px);
+  }
+
+  &__scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-end;
   }
 
   &__close-btn {
@@ -356,11 +356,21 @@ export default {
     background: var(--primary-color, #4A90E2);
     color: #ffffff; // White text for contrast against colored background
 
+    // Carousel pill sizing: show 2 full + peek of 3rd
+    flex: 0 0 auto;
+    width: calc((100vw - 32px - 16px) / 2.3); // ~145px on 375px, shows ~30% of 3rd pill
+    animation: none; // disable float animation in row
+    scroll-snap-align: start;
+
     &__text {
       font-size: 13px;
       line-height: 1.3;
-      margin-right: 8px;
+      margin-right: 4px;
       color: #ffffff; // White text for better visibility on colored background
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     &__arrow {

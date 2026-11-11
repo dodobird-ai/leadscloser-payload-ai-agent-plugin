@@ -105,33 +105,69 @@
                 CircleCheckIcon
               span {{ formatFeatureName(key) }}
 
-      //- Actions Section
-      .property-actions
-        //- Property Actions (PDF, Contact Agent, Cart, etc.)
-        .main-actions(v-if="property.actions && Object.keys(property.actions).length > 0")
-          ElButton.action-btn.action-btn--primary(
-            v-for="actionKey in Object.keys(property.actions)"
-            :key="actionKey"
-            :color="botParameters.primaryColor"
-            @click="handleAction(actionKey, property.actions[actionKey])"
-            :disabled="botParameters.preview"
-          )
-            ElIcon(v-if="property.actions[actionKey].frontend_params.icon === 'pdf'")
-              DocumentIcon
-            ElIcon(v-else-if="property.actions[actionKey].frontend_params.icon === 'contact'")
-              ContactIcon
-            ElIcon(v-else-if="property.actions[actionKey].frontend_params.icon === 'cart'")
-              CartIcon
-            | &nbsp;{{ property.actions[actionKey].frontend_params.text }}
+      //- Segmented control for switching between forms
+      .form-segment-control(v-if="contactAction || formToggleActions.length > 0" :style="{ '--primary-color': botParameters.primaryColor }")
+        button.form-segment-btn(
+          v-if="contactAction"
+          :class="{ 'form-segment-btn--active': activeFormKey === 'contact' }"
+          @click="!botParameters.preview && onContactBtnClick()"
+          :disabled="botParameters.preview"
+        ) {{ getLocalizedText(contactAction.frontend_params.text) || $t('text.contactAgent') }}
+        button.form-segment-btn(
+          v-for="action in formToggleActions"
+          :key="action.key"
+          :class="{ 'form-segment-btn--active': activeFormKey === action.key }"
+          @click="!botParameters.preview && onActionBtnClick(action.key, action.actionObjValues)"
+          :disabled="botParameters.preview"
+        ) {{ getLocalizedText(action.actionObjValues.frontend_params.text) }}
 
-        //- Visit Detailed Page (at the end)
-        ElButton.action-btn.action-btn--secondary(
-          @click="visitDetailedPage"
-          :style="{ borderColor: botParameters.primaryColor, color: botParameters.primaryColor }"
+      //- Agent Section with toggling forms
+      .property-agent-section(v-if="agent.agent_name || contactAction || formToggleActions.length > 0")
+        .agent-header(v-if="agent.agent_name && activeFormKey === 'contact'")
+          .agent-avatar
+            img(v-if="agent.agent_photo_url" :src="agent.agent_photo_url" :alt="agent.agent_name")
+            .agent-avatar-placeholder(v-else)
+              | {{ getAgentInitials(agent.agent_name) }}
+          .agent-info
+            h4.agent-name {{ agent.agent_name }}
+            p.agent-label {{ $t("text.contactAgent") }}
+
+        //- Active: contact form
+        .agent-contact-form(v-if="activeFormKey === 'contact' && contactAction && !contactFormCompleted && hasContactFormSchema")
+          InlineForm(
+            :form-name="getFormName(contactAction.prerequisite)"
+            :pending-action="contactPendingAction"
+            :action-text="contactAction.frontend_params.text"
+            :is-completed="contactFormCompleted"
+            @form-completed="onContactFormCompleted"
+          )
+
+        //- Active: toggled form (e.g. send PDF)
+        .agent-contact-form(v-else-if="activeFormKey !== 'contact' && activeToggleAction && !completedToggleForms[activeFormKey] && hasToggleFormSchema")
+          InlineForm(
+            :key="activeFormKey"
+            :form-name="getFormName(activeToggleAction.actionObjValues.prerequisite)"
+            :pending-action="activeTogglePendingAction"
+            :action-text="activeToggleAction.actionObjValues.frontend_params.text"
+            :is-completed="!!completedToggleForms[activeFormKey]"
+            @form-completed="onToggleFormCompleted"
+          )
+
+        //- Fallback button if contact form schema not loaded
+        ElButton.agent-contact-btn(
+          v-if="activeFormKey === 'contact' && contactAction && !contactFormCompleted && !hasContactFormSchema"
+          :color="botParameters.primaryColor"
+          @click="handleAction(contactActionKey, contactAction)"
         )
           ElIcon
-            ViewIcon
-          | &nbsp;{{ $t("btn.viewDetailedPage") }}
+            ContactIcon
+          | &nbsp;{{ getLocalizedText(contactAction.frontend_params.text) }}
+
+        //- Success message
+        .agent-contact-success(v-if="(activeFormKey === 'contact' && contactFormCompleted) || (activeFormKey !== 'contact' && completedToggleForms[activeFormKey])")
+          .success-icon ✓
+          p {{ activeFormKey === 'contact' ? `Your message has been sent to ${agent.agent_name || 'the agent'}` : `Your ${completedToggleTexts[activeFormKey]} has been sent` }}
+
 
 //- Fullscreen Image Viewer with Zoom (Teleported to body)
 Teleport(to="body")
@@ -186,6 +222,7 @@ Teleport(to="body")
 import { ElButton, ElIcon } from "element-plus";
 import { mapState } from "pinia";
 import { useBotStore } from "@/store/bot";
+import InlineForm from "./InlineForm.vue";
 import {
   Close as CloseIcon,
   View as ViewIcon,
@@ -215,6 +252,7 @@ export default {
   components: {
     ElButton,
     ElIcon,
+    InlineForm,
     CloseIcon,
     ViewIcon,
     DocumentIcon,
@@ -273,6 +311,11 @@ export default {
       isFullscreenSwiping: false,
       // Track if we're closing to prevent double-close
       isClosing: false,
+      // Contact form state
+      contactFormCompleted: false,
+      completedToggleForms: {},
+      completedToggleTexts: {},
+      activeFormKey: 'contact',
     };
   },
 
@@ -299,7 +342,7 @@ export default {
   },
 
   computed: {
-    ...mapState(useBotStore, ["botParameters"]),
+    ...mapState(useBotStore, ["botParameters", "dynamicForms"]),
 
     imageUrls() {
       if (!this.property.image_url) return [];
@@ -361,6 +404,100 @@ export default {
 
     hasFeatures() {
       return Object.keys(this.displayFeatures).length > 0;
+    },
+
+    agent() {
+      return this.property.description_metadata?.sources?.wp_crm?.agent || {};
+    },
+
+    // Find the contact action (key contains 'contact' or 'agent')
+    contactAction() {
+      if (!this.property.actions) return null;
+      for (const key of Object.keys(this.property.actions)) {
+        if (key.includes('contact') || key.includes('agent')) {
+          return this.property.actions[key];
+        }
+      }
+      return null;
+    },
+
+    // Get the contact action key
+    contactActionKey() {
+      if (!this.property.actions) return null;
+      for (const key of Object.keys(this.property.actions)) {
+        if (key.includes('contact') || key.includes('agent')) {
+          return key;
+        }
+      }
+      return null;
+    },
+
+    // All non-contact actions (shown as buttons in actions section)
+    nonContactActions() {
+      if (!this.property.actions) return [];
+      return Object.keys(this.property.actions).filter(key => {
+        return !key.includes('contact') && !key.includes('agent');
+      });
+    },
+
+    // Non-contact actions that have form prerequisites (shown as toggleable forms)
+    formToggleActions() {
+      if (!this.property.actions) return [];
+      return Object.keys(this.property.actions)
+        .filter(key => {
+          if (key.includes('contact') || key.includes('agent')) return false;
+          if (key.includes('buyer')) return false;
+          return !!this.property.actions[key].prerequisite;
+        })
+        .map(key => ({ key, actionObjValues: this.property.actions[key] }));
+    },
+
+    // The currently active toggleable action (when not showing contact form)
+    activeToggleAction() {
+      if (this.activeFormKey === 'contact') return null;
+      return this.formToggleActions.find(a => a.key === this.activeFormKey) || null;
+    },
+
+    agentSubtitle() {
+      if (this.activeFormKey === 'contact' || !this.activeToggleAction) return this.$t('text.contactAgent');
+      return this.getLocalizedText(this.activeToggleAction.actionObjValues.frontend_params.text);
+    },
+
+    activeTogglePendingAction() {
+      if (!this.activeToggleAction) return null;
+      const action = this.activeToggleAction;
+      return {
+        key: action.key,
+        actionObjValues: action.actionObjValues,
+        urlParam: action.key,
+        frontendParams: action.actionObjValues.frontend_params,
+        backendParams: action.actionObjValues.backend_params,
+      };
+    },
+
+    hasToggleFormSchema() {
+      if (!this.activeToggleAction) return false;
+      const formName = this.getFormName(this.activeToggleAction.actionObjValues.prerequisite);
+      return !!(this.dynamicForms[formName]?.schema);
+    },
+
+
+    // Pending action object for InlineForm
+    contactPendingAction() {
+      if (!this.contactAction || !this.contactActionKey) return null;
+      return {
+        key: this.contactActionKey,
+        actionObjValues: this.contactAction,
+        urlParam: this.contactActionKey,
+        frontendParams: this.contactAction.frontend_params,
+        backendParams: this.contactAction.backend_params,
+      };
+    },
+
+    // Check if the contact form schema is loaded from backend
+    hasContactFormSchema() {
+      const formName = this.contactAction ? this.getFormName(this.contactAction.prerequisite) : 'contactForm';
+      return !!(this.dynamicForms[formName]?.schema);
     },
 
     fullscreenImageStyle() {
@@ -447,6 +584,70 @@ export default {
 
     handleAction(actionKey, actionObjValues) {
       this.$emit("handle-action", { key: actionKey, actionObjValues });
+    },
+
+    onContactBtnClick() {
+      this.activeFormKey = 'contact';
+    },
+
+    onActionBtnClick(actionKey, actionObjValues) {
+      if (actionObjValues.prerequisite) {
+        this.activeFormKey = actionKey;
+      } else {
+        this.handleAction(actionKey, actionObjValues);
+      }
+    },
+
+    getButtonLabel(actionKey) {
+      if (this.activeFormKey !== actionKey) {
+        return this.getLocalizedText(this.property.actions[actionKey].frontend_params.text);
+      }
+      return this.contactAction
+        ? this.getLocalizedText(this.contactAction.frontend_params.text)
+        : this.$t('text.contactAgent');
+    },
+
+    getButtonIcon(actionKey) {
+      if (this.activeFormKey !== actionKey) {
+        return this.property.actions[actionKey].frontend_params.icon;
+      }
+      return 'contact';
+    },
+
+    getAgentInitials(name) {
+      if (!name) return '?';
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    },
+
+    getFormName(prerequisite) {
+      if (!prerequisite) return "contactForm";
+      const name = typeof prerequisite === "string" ? prerequisite : prerequisite.name;
+      return name === "collect_infos" ? "contactForm" : name;
+    },
+
+    onContactFormCompleted() {
+      this.contactFormCompleted = true;
+    },
+
+    onToggleFormCompleted() {
+      const key = this.activeFormKey;
+      this.completedToggleTexts[key] = this.activeToggleAction
+        ? this.getLocalizedText(this.activeToggleAction.actionObjValues.frontend_params.text)
+        : '';
+      this.completedToggleForms[key] = true;
+    },
+
+    getLocalizedText(text) {
+      if (!text) return '';
+      if (typeof text === 'string') return text;
+      // Get locale from dynamicForms or fallback to 'en'
+      const locale = this.dynamicForms?.localeForm?.data?.language || 'en';
+      return text[locale] || text.en || '';
     },
 
     nextImage() {
@@ -1144,6 +1345,167 @@ export default {
   }
 }
 
+// Agent Section with Contact Form
+.property-agent-section {
+  margin: 0 30px 20px;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+}
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.agent-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.agent-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a2b49 0%, #2d4a7c 100%);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.agent-info {
+  flex: 1;
+}
+
+.agent-name {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.agent-label {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.form-segment-control {
+  display: flex;
+  margin: 0 30px 12px;
+  background: #ebebeb;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.form-segment-btn {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &--active {
+    background: var(--primary-color, #333);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.agent-contact-form {
+  margin-top: 16px;
+
+  :deep(.inline-form) {
+    margin-top: 0;
+    background: white;
+    border: 1px solid #e0e0e0;
+  }
+}
+
+.agent-contact-btn {
+  width: 100%;
+  margin-top: 16px;
+  height: 48px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px !important;
+}
+
+.form-toggle-btn-wrapper {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.form-toggle-btn {
+  font-size: 13px;
+  color: #666 !important;
+  text-decoration: underline;
+  padding: 4px 0 !important;
+
+  &:hover {
+    color: #333 !important;
+  }
+}
+
+.agent-contact-success {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #d4edda;
+  border-radius: 8px;
+  margin-top: 16px;
+
+  .success-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #28a745;
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+  }
+
+  p {
+    margin: 0;
+    color: #155724;
+    font-weight: 500;
+  }
+}
+
 // Actions Section
 .property-actions {
   display: flex;
@@ -1197,6 +1559,7 @@ export default {
       }
     }
 
+
     &--secondary {
       background: transparent !important;
       border: 1px solid !important;
@@ -1205,6 +1568,12 @@ export default {
       &:hover {
         background: rgba(0, 0, 0, 0.03) !important;
       }
+    }
+
+    &--active {
+      opacity: 0.7;
+      outline: 2px solid currentColor;
+      outline-offset: -3px;
     }
 
     &:active {
@@ -1388,6 +1757,33 @@ export default {
       padding-top: 16px;
     }
   }
+
+  .property-agent-section {
+    margin: 0 20px 16px;
+    padding: 16px;
+  }
+
+  .agent-header {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .agent-avatar {
+    width: 52px;
+    height: 52px;
+  }
+
+  .agent-avatar-placeholder {
+    font-size: 18px;
+  }
+
+  .agent-name {
+    font-size: 16px;
+  }
+
+  .agent-label {
+    font-size: 12px;
+  }
 }
 
 // Extra small devices
@@ -1411,6 +1807,24 @@ export default {
 
   .property-actions {
     padding: 0 16px 16px 16px;
+  }
+
+  .property-agent-section {
+    margin: 0 16px 12px;
+    padding: 14px;
+  }
+
+  .agent-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .agent-avatar-placeholder {
+    font-size: 16px;
+  }
+
+  .agent-name {
+    font-size: 15px;
   }
 }
 </style>

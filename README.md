@@ -64,7 +64,11 @@ The native reporting adapter preserves the WordPress chatbot's property View and
 
 Reporting is **denied by default**. Register `leadsCloserChatbotPlugin({ reporting: { hasConsent: req => /* validate your host's analytics consent */ false } })` and pass the current consent boolean to `<Chatbot analyticsConsent={allowed} />`. Custom mounts can import `startChatbotTracking` from the `/tracking` export, supply `hasConsent: () => boolean`, and invoke the returned cleanup when unmounting or withdrawing consent. No pre-consent events are queued. A server consent callback is mandatory even if browser consent is granted.
 
-Server options `reporting.apiHostname`, `reporting.apiKey`, and `reporting.tenantId` override the saved chatbot origin/key and optionally supply `X-TENANT-ID`. Keep them server-only. The endpoint rejects missing/mismatched origins, invalid or oversized events, missing session cookies and requests without consent, and has a bounded per-process rate limit. Configure ingress rate limiting as appropriate for multi-instance hosting. Tracking failures never block chatting. Existing WordPress wire identifiers remain for backend compatibility; no schema migration is required.
+Configure **Reporting origin**, **Reporting API key**, and optional **Reporting tenant ID** in Payload → LeadsCloser → LeadsCloser Chatbot Settings. The origin defaults to `https://api.dodobird.ai` and accepts HTTPS origins only. Payload settings are the sole source: legacy environment/server overrides are no longer used, and reporting never falls back to the chat backend or key. Missing reporting origin/key skips forwarding with a fixed server warning; chatting remains available. Tenant ID is sent as `X-TENANT-ID` only when set.
+
+The reporting key uses the same admin-only read/update access, password editor, and database text storage as the existing chat API key (no additional application-level encryption). Credentials are absent from public widget configuration and reporting responses; authorized administrators retain the same settings access as for the existing API key. Logs never include credentials or upstream bodies.
+
+The host must migrate the new `reporting_origin`, `reporting_api_key`, and `reporting_tenant_id` columns before serving the new configuration. The endpoint retains consent/origin checks, bounded event validation, rate limits, a two-second timeout and redirect rejection. Sync accepts optional `reporting_origin` and `reporting_tenant_id` (or `tenant_id`) metadata to prefill blank fields without replacing saved values. It never imports a reporting credential. The required provisioning contract remains `campaign_id`, `cf_site_key`, `cf_secret_key`. In explicit development mock mode, existing Turnstile test keys are preserved during sync.
 
 ## Publication checks
 
@@ -73,3 +77,27 @@ Run `npm run security:check` before publishing or pushing a release. It requires
 Keep real credentials in the host's private runtime configuration, never in Vue environment variables or fixtures. Use reserved `example.com` addresses for examples. Do not add customer screenshots, enquiry exports, database dumps, or production configuration to the generic plugin. A clean scan is evidence for the checked revision, not a guarantee that arbitrary future changes or external copies are confidential.
 
 Behind a reverse proxy, set Payload's `serverURL` to the canonical public website origin. Reporting and admin provisioning/import origin checks use that trusted configuration instead of the container's internal URL. Forwarded headers do not grant access to other origins. MSIR uses its existing `NEXT_PUBLIC_API_BASE_URL` site origin for this setting.
+
+
+## Reproducible Vue updates
+
+`vue/UPSTREAM.json` pins the full dodo-ai-chat commit. Run `npm run sync:vue -- <revision>` to fetch that commit, apply publication exclusions and the ordered `vue-patches/*.patch` files, and replace the managed snapshot. Run `npm run check:vue` (also part of `npm test`) to reconstruct it in a temporary directory and reject any drift, including extra files. Never hand-edit the vendored source without updating its patch.
+
+Exactly four paths are ignored by this comparison: `node_modules/` (installed dependencies), `.cache/` and `dist/` (generated build outputs), and `package-lock.json` (our npm resolution; upstream uses Yarn). Sync preserves these four paths. Regenerate the npm lock when dependency declarations change; CI separately runs `npm ci --prefix vue` to validate it. UPSTREAM metadata, source, assets, package.json and all other files are compared byte-for-byte. `scripts/vue-source.mjs` lists publication exclusions: upstream environment files, CI/tests/docs, Yarn lock and customer demo assets. The embedded fake-message dataset is excluded before a patch adds an empty helper, keeping removed customer data out of patch files too.
+
+The upstream is private. CI requires repository Actions secret `VUE_UPSTREAM_TOKEN` with read-only contents access to `dodobird-ai/dodo-ai-chat`; it is passed only as `GH_TOKEN` to Git's gh credential helper. No credential is recorded in the snapshot. For offline local validation, `VUE_UPSTREAM_SOURCE=/path/to/dodo-ai-chat` fetches the same pinned Git object from an existing clone.
+
+The initial integration revision `2ccec2d8f3b9121c8ad411193490ead821d011aa` remains on `integrate/fix-chatbot-forms` as a reference only. After upstream PRs #77 and #74 passed CI and merged, this snapshot was repinned to main commit `bfc42799858148479f79e1fc611897d6f46fbbda`. Direct tree comparison shows only the excluded CI workflow changed upstream; the reconstructed Vue source is byte-identical apart from UPSTREAM metadata. Future updates must repeat the sync and drift checks.
+
+### Inquiry attribution consent
+
+`Chatbot` accepts `analyticsConsent` and `advertisingConsent` (leave the latter
+`null` until the host consent decision is loaded). Full first-touch attribution
+is persisted in sessionStorage only when both are true. Custom loaders call
+`setChatbotAttributionConsent(null | boolean)` from the loader export before
+starting the widget and whenever consent changes. The loader captures the initial
+URL/referrer before asynchronous widget loading. Refusal/withdrawal removes stored
+attribution; actions then contain only language and a query-free landing URL.
+Without consent, first-page context is memory-only: it survives SPA navigation,
+but not a full reload. Acceptance after an explicit refusal does not recover
+previously discarded identifiers. MSIR supplies its existing consent state.

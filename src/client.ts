@@ -1,3 +1,25 @@
+declare global {
+  interface Window {
+    leadscloserAttribution?: { landingPage: string; referrerUrl: string; consent: boolean | null }
+  }
+}
+// Capture before the async config/asset fetch and before client-side navigation.
+if (typeof window !== 'undefined') {
+  window.leadscloserAttribution ||= { landingPage: window.location.href, referrerUrl: document.referrer, consent: null }
+}
+export function setChatbotAttributionConsent(consent: boolean | null) {
+  const context = window.leadscloserAttribution ||= { landingPage: window.location.href, referrerUrl: document.referrer, consent: null }
+  if (consent === null && context.consent !== null) consent = false
+  context.consent = consent
+  if (consent === false) {
+    const url = new URL(context.landingPage)
+    context.landingPage = url.origin + url.pathname
+    context.referrerUrl = ''
+    try { window.sessionStorage.removeItem('leadscloser:first-touch:v1') } catch { /* Storage unavailable. */ }
+  }
+  window.dispatchEvent(new Event('leadscloser:attribution-consent'))
+}
+
 export interface ChatbotOptions { primaryColor?: string; featuredImage?: string }
 const scripts = new Map<string, Promise<void>>()
 function loadScript(src: string) {

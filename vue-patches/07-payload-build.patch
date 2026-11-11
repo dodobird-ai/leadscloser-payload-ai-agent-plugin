@@ -1,0 +1,48 @@
+--- a/vue.config.js
++++ b/vue.config.js
+@@ -3,6 +3,7 @@
+ const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
+ 
+ module.exports = defineConfig({
++  publicPath: "/chatbot/",
+   devServer: {
+     port: 1901,
+   },
+@@ -47,6 +48,8 @@
+   },
+ 
+   chainWebpack: (config) => {
++    config.plugin("eslint").tap(args => { args[0].cacheLocation = require("path").resolve(__dirname, ".cache/eslint"); return args; });
++    config.module.rule("js").use("babel-loader").tap(options => ({ ...options, cacheDirectory: require("path").resolve(__dirname, ".cache/babel") }));
+     if (process.env.NODE_ENV === "production") {
+       config.output.filename("assets/[name].[contenthash:8].js");
+       config.output.chunkFilename("assets/[name].[contenthash:8].js");
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,23 +1,4 @@
+-.DS_Store
+ node_modules
+-/dist
+-
+-
+-# local env files
+-.env.local
+-.env.*.local
+-
+-# Log files
+-npm-debug.log*
+-yarn-debug.log*
+-yarn-error.log*
+-pnpm-debug.log*
+-
+-# Editor directories and files
+-.idea
+-.vscode
+-*.suo
+-*.ntvs*
+-*.njsproj
+-*.sln
+-*.sw?
++.cache/
++dist/
++.env*

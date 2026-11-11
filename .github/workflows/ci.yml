@@ -1,0 +1,26 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts-and-widget:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.VUE_UPSTREAM_TOKEN }}
+      CYPRESS_INSTALL_BINARY: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require private upstream read access
+        run: test -n "$GH_TOKEN" || { echo 'Configure VUE_UPSTREAM_TOKEN with read-only access to dodobird-ai/dodo-ai-chat'; exit 1; }
+      - run: npm install --no-package-lock --legacy-peer-deps
+      - run: npm ci --prefix vue
+      - run: npm test
+      - run: npm run build:widget

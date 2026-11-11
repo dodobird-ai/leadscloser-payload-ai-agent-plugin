@@ -5,7 +5,7 @@ const i18n = createI18n({
     fallbackLocale: "en",
     messages: {
         en: {
-            propertyCard: { bedrooms: 'Bedrooms', bathrooms: 'Bathrooms', interior: 'Interior', exterior: 'Exterior', beds: 'beds', baths: 'baths', m2: 'm²', price: 'Price', view: 'View this property', marketedBy: 'Marketed by', forSale: 'For sale', forRent: 'For rent' },
+            propertyCard: { foreigners: 'Foreigners eligible', bedrooms: 'Bedrooms', bathrooms: 'Bathrooms', interior: 'Interior', exterior: 'Exterior', beds: 'beds', baths: 'baths', m2: 'm²', price: 'Price', view: 'View this property', marketedBy: 'Marketed by', forSale: 'For sale', forRent: 'For rent' },
             btn: {
                 sidebarView: "Sidebar View (Beta)",
                 chatbotView: "Chatbot View",
@@ -21,6 +21,7 @@ const i18n = createI18n({
             },
             placeholder: {
                 askMaxAI: "Ask Max AI...",
+                searchMaxAI: "Search with Max AI...",
                 continueConversation: "Continue conversation",
                 typeMessage: "Ask anything",
             },
@@ -54,7 +55,7 @@ const i18n = createI18n({
             },
         },
         fr: {
-            propertyCard: { bedrooms: 'Chambres', bathrooms: 'Salles de bain', interior: 'Intérieur', exterior: 'Extérieur', beds: 'chambres', baths: 'bains', m2: 'm²', price: 'Prix', view: 'Voir ce bien', marketedBy: 'Commercialisé par', forSale: 'À vendre', forRent: 'À louer' },
+            propertyCard: { foreigners: 'Accessible aux étrangers', bedrooms: 'Chambres', bathrooms: 'Salles de bain', interior: 'Intérieur', exterior: 'Extérieur', beds: 'chambres', baths: 'bains', m2: 'm²', price: 'Prix', view: 'Voir ce bien', marketedBy: 'Commercialisé par', forSale: 'À vendre', forRent: 'À louer' },
             btn: {
                 sidebarView: "Vue en barre latérale (Bêta)",
                 chatbotView: "Vue du chatbot",
@@ -70,6 +71,7 @@ const i18n = createI18n({
             },
             placeholder: {
                 askMaxAI: "Demandez à Max AI...",
+                searchMaxAI: "Recherchez avec Max AI...",
                 continueConversation: "Continuer la conversation",
                 typeMessage: "Demandez n'importe quoi",
             },
