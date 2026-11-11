@@ -9,7 +9,7 @@
       </component>
     </div>
 
-    <Vueform :key="locale" :locale="locale" ref="form$" addClass="vf-my-form" :schema="formSchema"
+    <Vueform :key="`${formName}:${locale}`" :locale="locale" ref="form$" addClass="vf-my-form" :schema="formSchema"
       :endpoint="false" :display-errors="false" validate-on="submit|blur" @submit="submit" />
 
     <div v-html="dynamicStyles"></div>
@@ -258,9 +258,10 @@ export default {
         const persistedData = this.dynamicForms.contactForm.data;
 
         // Wait for form to be ready, then load the values
-        nextTick(() => {
+        nextTick(async () => {
           if (this.$refs.form$) {
-            this.$refs.form$.load(persistedData);
+            await this.$refs.form$.load(persistedData);
+            this.$refs.form$.resetValidators();
           }
         });
       }

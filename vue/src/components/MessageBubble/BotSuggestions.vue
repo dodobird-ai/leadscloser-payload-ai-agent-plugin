@@ -38,58 +38,44 @@ div(v-if="sortedOptions.length > 0 || isSorting")
       ref="scrollContainer"
       :style="{ cursor: isDragging ? 'grabbing' : 'grab' }"
     )
-      .property-card.animate-card(v-for="(option, index) in sortedOptions" :key="option.item_id || index" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-tracking-object="item" :data-tracking-name="option.sku" :style="cardAnimationStyle(index)")
-        //- Image Section
-        .property-card__image-section(@click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="image")
-          .property-card__image(v-if="option.image_url" :style="{ backgroundImage: 'url(' + getFirstImageUrl(option.image_url) + ')' }")
-          .property-card__image.property-card__image--placeholder(v-else)
-            ElIcon.property-card__placeholder-icon
-              PictureIcon
-          //- Remove Button
-          button.property-card__remove(v-if="!botParameters.preview" @click.stop="removeItem(index, option.item_id)")
-            IconThumbDown
-
-        //- Content Section (flexible, takes remaining space)
-        .property-card__content
-          //- Tags Section
+      ElCard.custom-card.animate-card(v-for="(option, index) in sortedOptions" :key="option.item_id || index" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-tracking-object="item" :data-tracking-name="option.sku" :style="cardAnimationStyle(index)")
+        .card-header(@click="openPropertyPreview(option)" style="cursor: pointer" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="image")
+          .card-image(v-if="option.image_url" :style="{ backgroundImage: 'url(' + getFirstImageUrl(option.image_url) + ')' }")
+          ElImage.card-image(v-else)
+            template(#error)
+              div.image-slot
+                ElIcon
+                  PictureIcon
+                p.text-center.fs-5.px-5 {{ $t("text.itemImageNotAvailable") }}
+          .action-buttons(v-if="!botParameters.preview")
+            //- IconThumbUp.like-btn(@click="toggleLike(option.id)" :class="{ 'liked': isLiked(option.id) }")
+            IconThumbDown.unlike-btn(@click.stop="removeItem(index, option.item_id)")
+        .card-details.property-card__body
           .property-card__tags
-            span.property-card__tag(v-if="option.category") {{ formatCategory(option.category) }}
-            span.property-card__tag.property-card__tag--highlight(v-if="option.meta_category") {{ getFullStatusLabel(option.meta_category) }}
-            span.property-card__tag.property-card__tag--highlight(v-if="isAccessibleToForeigners(option)") FOREIGNERS OK
-
-          //- Title
-          .property-card__title {{ option.name }}
-
-          //- Stats Row
-          .property-card__stats(v-if="getSpecs(option).bedrooms || getSpecs(option).size_in_sqmt || getSpecs(option).lot_size")
-            span.property-card__stat(v-if="getSpecs(option).bedrooms") {{ getSpecs(option).bedrooms }} {{ getSpecs(option).bedrooms === 1 ? 'BED' : 'BEDS' }}
-            span.property-card__stat(v-if="getSpecs(option).bathrooms") {{ getSpecs(option).bathrooms }} {{ getSpecs(option).bathrooms === 1 ? 'BATH' : 'BATHS' }}
-            span.property-card__stat(v-if="getSpecs(option).size_in_sqmt") {{ formatArea(getSpecs(option).size_in_sqmt) }} M²
-            span.property-card__stat(v-if="!getSpecs(option).size_in_sqmt && getSpecs(option).lot_size") {{ formatArea(getSpecs(option).lot_size) }} M² LAND
-
-        //- Footer Section (always at bottom)
-        .property-card__footer
-          //- Price Section
-          .property-card__price-section
-            .property-card__price-wrapper
-              span.property-card__price-label PRICE
-              .property-card__price
-                span(v-if="option.currency") {{ option.currency }}
-                span(v-else) USD
-                | &nbsp;{{ formatPrice(option.price) }}
-            button.property-card__view-btn(@click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
-              | View
-              ArrowRightIcon
-
-          //- Agent Section (if available)
-          .property-card__agent(v-if="getAgent(option).agent_name")
-            .property-card__agent-avatar
-              img(v-if="getAgent(option).agent_photo_url" :src="getAgent(option).agent_photo_url" :alt="getAgent(option).agent_name")
-              .property-card__agent-avatar-placeholder(v-else)
-                | {{ getInitials(getAgent(option).agent_name) }}
-            .property-card__agent-info
-              span.property-card__agent-label Marketed by
-              span.property-card__agent-name {{ getAgent(option).agent_name }}
+            span.property-card__tag(v-if="option.category") {{ option.category }}
+            span.property-card__tag(v-if="option.meta_category") {{ $t(option.meta_category === 'rent' ? "propertyCard.forRent" : "propertyCard.forSale") }}
+            span.property-card__tag(v-if="isAccessibleToForeigners(option)") {{ $t("propertyCard.foreigners") }}
+          h3.card-text.property-card__name(:title="option.name") {{option.name}}
+          .property-card__amenities
+            template(v-for="spec in [{key: 'bedrooms', label: 'bedrooms', unit: 'beds'}, {key: 'bathrooms', label: 'bathrooms', unit: 'baths'}, {key: 'size_in_sqmt', label: 'interior', unit: 'm2'}, {key: 'lot_size', label: 'exterior', unit: 'm2'}]" :key="spec.key")
+              .property-card__amenity-cell(v-if="option.description_metadata?.sources?.wp_crm?.specifications?.[spec.key] != null")
+                span.property-card__amenity-label {{ $t('propertyCard.' + spec.label) }}
+                span.property-card__amenity-value {{ formatPrice(option.description_metadata.sources.wp_crm.specifications[spec.key]) }} {{ $t('propertyCard.' + spec.unit) }}
+          .property-card__divider
+          .property-card__footer
+            .card-price(v-if="option.price")
+              span.property-card__price-label {{ $t("propertyCard.price") }}
+              p.property-card__price {{ option.currency || 'MUR' }} {{ formatPrice(option.price) }}
+            ElButton.property-card__cta(:color="botParameters.primaryColor" @click="openPropertyPreview(option)" :data-product_id="option.item_id" :data-sku="option.sku" :data-message_id="message.id" :data-conversation_id="message.conversation_id" data-action="view" data-tracking-object="item" :data-tracking-name="option.sku" data-tracking-context="item")
+              | {{ $t("propertyCard.view") }}
+              svg(width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true")
+                path(d="M5 12h14M13 6l6 6-6 6")
+          .property-card__agent(:aria-hidden="option.description_metadata?.sources?.wp_crm?.agent?.agent_name ? undefined : true")
+            template(v-if="option.description_metadata?.sources?.wp_crm?.agent?.agent_name")
+              img.property-card__agent-photo(v-if="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :src="option.description_metadata.sources.wp_crm.agent.agent_photo_url" :alt="option.description_metadata.sources.wp_crm.agent.agent_name" width="32" height="32" loading="lazy")
+              .property-card__agent-text
+                span.property-card__agent-label {{ $t('propertyCard.marketedBy') }}
+                span.property-card__agent-name {{ option.description_metadata.sources.wp_crm.agent.agent_name }}
 
       //- Load More card at the end of carousel
       .property-card.property-card--load-more(v-if="message.has_more && !isLoadingMore" @click="loadMoreResults")

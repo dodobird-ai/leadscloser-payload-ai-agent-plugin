@@ -291,7 +291,7 @@ async function initializeApp() {
   if (preview) {
     window.createAndMountApp = createAndMountApp;
   } else {
-    createAndMountApp("#app");
+    createAndMountApp("#dodobird-chatbot-root");
   }
 }
 

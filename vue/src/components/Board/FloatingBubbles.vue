@@ -79,6 +79,15 @@ export default {
         : this.$root.$i18n.locale;
     },
   },
+  watch: {
+    statusActive(active) {
+      this.stopNudgeLoop();
+      if (!active && !this.floatingBubblesDismissed) this.$nextTick(this.startNudgeLoop);
+    },
+    floatingBubblesDismissed(dismissed) {
+      if (dismissed) this.stopNudgeLoop();
+    },
+  },
   mounted() {
     // Listen for scroll to hide bubbles temporarily
     window.addEventListener('scroll', this.handleScroll, { passive: true });
@@ -127,6 +136,8 @@ export default {
     },
 
     startNudgeLoop() {
+      this.stopNudgeLoop();
+      if (this.statusActive || this.floatingBubblesDismissed) return;
       this.nudgeScroll();
       this.nudgeInterval = setInterval(() => this.nudgeScroll(), 3000);
     },

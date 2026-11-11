@@ -110,7 +110,7 @@ export const useBotStore = defineStore("bot", {
       tenantName: "", // Tenant name for API calls (e.g., "sothebys-realty-mu")
       greetingMessage: "",
       primaryColor: "#4356e0",
-      title: "DodoGPT.ai BETA",
+      title: "LeadsCloser",
       featuredImage: "",
       campaignId: "",
       autoFetchRecommendation: "on",

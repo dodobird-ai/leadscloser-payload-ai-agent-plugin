@@ -513,3 +513,14 @@
     }
   }
 }
+
+/* Property metadata structure. Host themes may reuse their own card stylesheet. */
+.custom-card {
+  .property-card__tags, .property-card__specs, .property-card__footer { display: flex; flex-wrap: wrap; gap: 8px; }
+  .property-card__tags { margin-bottom: 8px; }
+  .property-card__specs { margin: 8px 0; }
+  .property-card__footer { align-items: flex-end; justify-content: space-between; }
+  .property-card__footer .card-price { margin: 0; text-align: left; }
+  .property-card__footer .property-card__cta { width: auto; }
+  .property-card__divider { height: 1px; margin: 8px 0; background: currentColor; opacity: .15; }
+}

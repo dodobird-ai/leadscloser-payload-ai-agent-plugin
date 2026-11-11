@@ -238,10 +238,10 @@ import {
   ArrowLeft as ArrowLeftIcon,
   ArrowRight as ArrowRightIcon,
   CircleCheck as CircleCheckIcon,
-  Toilet as IconToilet,
+  ToiletPaper as IconToilet,
   Calendar as IconCalendar,
   Grid as IconTerrace,
-  Parking as IconParking,
+  Van as IconParking,
 } from "@element-plus/icons-vue";
 // Note: Using available Element Plus icons as substitutes
 // IconBathroom will use a similar icon

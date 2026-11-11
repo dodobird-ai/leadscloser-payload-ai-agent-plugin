@@ -1,8 +1,9 @@
 <template lang="pug">
 .board-header
   slot(name="header")
-    .board-header__title(v-if="statusChatMode") {{botParameters.title}}
-    .board-header__title(v-else) Recent Chats
+    .board-header__identity
+      .board-header__title(v-if="statusChatMode") {{botParameters.title}}
+      .board-header__title(v-else) Recent Chats
     .board-header__menu()
       ElIcon.m-1.board-header__actions(v-if="!botParameters.preview && !statusSmallScreen && botParameters.view === 'both'", @click="togglePosition", size="20", color="#CBCCCD")
         BottomLeft(v-if="statusSidebar")
@@ -13,6 +14,8 @@
       ElPopover(
         v-if="!botParameters.preview || (botParameters.preview && isMobile)"
         placement="bottom-end",
+        :teleported="true",
+        append-to="#dodobird-chatbot-root",
         :width="200",
         trigger="click",
         v-model:visible="showMenuModal"
