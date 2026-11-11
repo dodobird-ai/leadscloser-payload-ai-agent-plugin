@@ -1,3 +1,4 @@
+import { withActionAttribution } from '@/services/attribution.mjs';
 import { defineStore } from "pinia";
 import { uuidv7 } from "uuidv7";
 import { $api } from "@/services/api";
@@ -837,7 +838,7 @@ export const useBotStore = defineStore("bot", {
               message_id: uuidv7(),
               session_id: this.session.sessionId,
               action: {
-                params: params,
+                params: withActionAttribution(url, params, getGlobalLocale()),
               },
               collected_infos: {
                 ...this.dynamicForms.contactForm.data,

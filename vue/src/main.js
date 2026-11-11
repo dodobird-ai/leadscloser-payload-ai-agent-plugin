@@ -1,3 +1,4 @@
+import { initializeAttribution } from './services/attribution.mjs';
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
@@ -10,6 +11,8 @@ import VueBotUI from "./vue-bot-ui";
 import { mockData } from "./mock_data";
 import i18n from "./i18n";
 import geolocationService from "./services/geolocation";
+
+initializeAttribution();
 
 const sidebarWidth = 23
 

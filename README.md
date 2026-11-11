@@ -88,3 +88,16 @@ Exactly four paths are ignored by this comparison: `node_modules/` (installed de
 The upstream is private. CI requires repository Actions secret `VUE_UPSTREAM_TOKEN` with read-only contents access to `dodobird-ai/dodo-ai-chat`; it is passed only as `GH_TOKEN` to Git's gh credential helper. No credential is recorded in the snapshot. For offline local validation, `VUE_UPSTREAM_SOURCE=/path/to/dodo-ai-chat` fetches the same pinned Git object from an existing clone.
 
 The initial integration revision `2ccec2d8f3b9121c8ad411193490ead821d011aa` remains on `integrate/fix-chatbot-forms` as a reference only. After upstream PRs #77 and #74 passed CI and merged, this snapshot was repinned to main commit `bfc42799858148479f79e1fc611897d6f46fbbda`. Direct tree comparison shows only the excluded CI workflow changed upstream; the reconstructed Vue source is byte-identical apart from UPSTREAM metadata. Future updates must repeat the sync and drift checks.
+
+### Inquiry attribution consent
+
+`Chatbot` accepts `analyticsConsent` and `advertisingConsent` (leave the latter
+`null` until the host consent decision is loaded). Full first-touch attribution
+is persisted in sessionStorage only when both are true. Custom loaders call
+`setChatbotAttributionConsent(null | boolean)` from the loader export before
+starting the widget and whenever consent changes. The loader captures the initial
+URL/referrer before asynchronous widget loading. Refusal/withdrawal removes stored
+attribution; actions then contain only language and a query-free landing URL.
+Without consent, first-page context is memory-only: it survives SPA navigation,
+but not a full reload. Acceptance after an explicit refusal does not recover
+previously discarded identifiers. MSIR supplies its existing consent state.
