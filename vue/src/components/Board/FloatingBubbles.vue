@@ -150,7 +150,7 @@ export default {
     },
 
     nudgeScroll() {
-      const scrollEl = this.$el?.querySelector('.floating-bubbles__scroll');
+      const scrollEl = this.$el?.querySelector?.('.floating-bubbles__scroll');
       if (!scrollEl) return;
       // Only nudge if the container is actually horizontally scrollable
       if (scrollEl.scrollWidth <= scrollEl.clientWidth) return;

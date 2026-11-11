@@ -73,3 +73,12 @@ test('uses configured public origin behind a proxy, not internal URL or forwarde
   Object.assign(denied.payload, { config: { serverURL: 'https://sir.mu' } })
   expect((await handler()(denied)).status).toBe(403)
 })
+
+
+test('separate reporting origin and credential do not reuse the chatbot host', async () => {
+  const endpoint = createReportingEndpoint({ hasConsent: () => true, apiHostname: 'https://reporting.example.com', apiKey: 'reporting-test-key' })
+  expect((await endpoint.handler(request())).status).toBe(202)
+  const [url, init] = (global.fetch as jest.Mock<typeof fetch>).mock.calls[0]
+  expect(String(url)).toBe('https://reporting.example.com/api/reporting')
+  expect(init!.headers).toMatchObject({ Authorization: 'reporting-test-key' })
+})
