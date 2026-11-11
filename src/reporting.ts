@@ -1,3 +1,4 @@
+import { publicOrigin } from './origin.ts'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { z } from 'zod'
 import { configurationProblem, upstreamURL } from './settings.ts'
@@ -32,7 +33,7 @@ export function createReportingEndpoint(options: ReportingOptions = {}): Endpoin
   const windows = new Map<string, { count: number; until: number }>()
   return { path: '/v1/chatbot/reporting', method: 'post', handler: async req => {
     try {
-      const origin = new URL(req.url!).origin
+      const origin = publicOrigin(req)
       if (req.headers.get('origin') !== origin || req.headers.get('sec-fetch-site') === 'cross-site') return reply(403, { error: 'Origin not allowed' })
       if (!await options.hasConsent?.(req)) return reply(403, { error: 'Analytics consent required' })
       if (!req.headers.get('content-type')?.startsWith('application/json')) return reply(415, { error: 'JSON required' })

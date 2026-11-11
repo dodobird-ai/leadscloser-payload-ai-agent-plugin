@@ -111,3 +111,9 @@ test('initial suggestions also supply bounded, localized mobile nudges', () => {
   expect(config.floatingQuestions).toEqual(initial.slice(0, 3))
   expect(publicSettings({ ...settings, inputSuggestions: null }).floatingQuestions).toEqual([])
 })
+
+test('admin settings origin check uses configured public origin behind a proxy', async () => {
+  const request = req({ user: { role: 'admin' }, headers: new Headers({ origin: 'https://sir.mu' }), json: async () => ({ dodobirdai_chatbot_title: 'Updated title' }) })
+  Object.assign(request.payload, { config: { serverURL: 'https://sir.mu' } })
+  expect((await endpoint('/import')(request)).status).toBe(200)
+})

@@ -1,3 +1,4 @@
+import { publicOrigin } from './origin.ts'
 import type { Endpoint, PayloadRequest } from 'payload'
 import { z } from 'zod'
 import { configurationProblem, importWordPressOptions, publicSettings, upstreamURL } from './settings.ts'
@@ -64,7 +65,7 @@ async function importSettings(req: PayloadRequest) {
   if (req.user?.role !== 'admin') return json({ error: 'Administrator access required' }, 403)
   // Payload custom handlers need their own origin check for cookie-authenticated writes.
   const origin = req.headers.get('origin')
-  if (origin && origin !== new URL(req.url!).origin) return json({ error: 'Origin not allowed' }, 403)
+  if (origin && origin !== publicOrigin(req)) return json({ error: 'Origin not allowed' }, 403)
   try {
     const data = importWordPressOptions(z.record(z.string(), z.unknown()).parse(await req.json!()))
     await req.payload.updateGlobal({ slug: 'chatbot-settings', data, req, overrideAccess: false })
@@ -77,7 +78,7 @@ async function importSettings(req: PayloadRequest) {
 async function sync(req: PayloadRequest) {
   if (req.user?.role !== 'admin') return json({ error: 'Administrator access required' }, 403)
   const origin = req.headers.get('origin')
-  if (origin && origin !== new URL(req.url!).origin) return json({ error: 'Origin not allowed' }, 403)
+  if (origin && origin !== publicOrigin(req)) return json({ error: 'Origin not allowed' }, 403)
   try {
     const settings = provisionSchema.parse(await upstream(req, '/api/v1/request-settings/'))
     await req.payload.updateGlobal({ slug: 'chatbot-settings', req, overrideAccess: false, data: {

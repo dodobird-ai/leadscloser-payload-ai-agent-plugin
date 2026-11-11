@@ -62,3 +62,14 @@ test('upstream errors stay private', async () => {
   expect(response.status).toBe(502)
   expect(await response.text()).not.toContain('private-key')
 })
+
+test('uses configured public origin behind a proxy, not internal URL or forwarded headers', async () => {
+  const req = request(event(), { origin: 'https://sir.mu', 'x-forwarded-host': 'attacker.example' })
+  Object.assign(req.payload, { config: { serverURL: 'https://sir.mu' } })
+  expect((await handler()(req)).status).toBe(202)
+  const [, init] = (global.fetch as jest.Mock<typeof fetch>).mock.calls[0]
+  expect(JSON.parse(init!.body as string).channel_name).toBe('sir.mu')
+  const denied = request(event(), { origin: 'https://attacker.example', 'x-forwarded-host': 'attacker.example' })
+  Object.assign(denied.payload, { config: { serverURL: 'https://sir.mu' } })
+  expect((await handler()(denied)).status).toBe(403)
+})
