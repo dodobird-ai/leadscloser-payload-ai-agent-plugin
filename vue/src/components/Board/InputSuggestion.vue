@@ -1,5 +1,5 @@
 <template lang="pug">
-.board-input-suggestion
+.board-input-suggestion(v-show="inputIsFocused")
   .bubble-btn-component__questions-wrapper
       .mb-question-item(
         v-if="startInputSuggestions" v-for="button in currentButtons" :key="button.id" @click="handleButtonClick(button)"
@@ -7,7 +7,7 @@
         p.mb-question-item__text.my-0 {{ button.text[locale] }}
         .mb-question-item__arrow
           ElIcon(size="large" :color="botParameters.primaryColor")
-            Top 
+            Top
       .mb-question-item(
         v-if="!startInputSuggestions && lastMessagesData && lastMessagesData.suggestions" v-for="suggestion in lastMessagesData.suggestions" @click="handleSuggestionClick(suggestion)"
       )
@@ -46,6 +46,10 @@ export default {
   },
   props: {
     startInputSuggestions: {
+      type: Boolean,
+      default: false,
+    },
+    inputIsFocused: {
       type: Boolean,
       default: false,
     },

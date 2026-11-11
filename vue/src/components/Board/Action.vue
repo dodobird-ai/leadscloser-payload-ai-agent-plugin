@@ -18,6 +18,8 @@
         :placeholder="$t('placeholder.typeMessage')",
         @keydown.enter.exact="handleSendMessage",
         @input="onInput",
+        @focus="handleInputFocus",
+        @blur="handleInputBlur",
       )
     .board-action__extra
       slot(name="actions")
@@ -137,6 +139,15 @@ export default {
           this.clearMessagesBufferMessages();
         }
       }, typingDelay);
+    },
+    handleInputFocus() {
+      this.$emit('input-focus', true);
+    },
+    handleInputBlur() {
+      // Small delay to allow click events on suggestions to fire first
+      setTimeout(() => {
+        this.$emit('input-focus', false);
+      }, 150);
     }
   }
 };

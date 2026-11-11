@@ -3,7 +3,6 @@ const webpack = require('webpack');
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 
 module.exports = defineConfig({
-  publicPath: "/chatbot/",
   devServer: {
     port: 1901,
   },
@@ -48,8 +47,6 @@ module.exports = defineConfig({
   },
 
   chainWebpack: (config) => {
-    config.plugin("eslint").tap(args => { args[0].cacheLocation = require("path").resolve(__dirname, ".cache/eslint"); return args; });
-    config.module.rule("js").use("babel-loader").tap(options => ({ ...options, cacheDirectory: require("path").resolve(__dirname, ".cache/babel") }));
     if (process.env.NODE_ENV === "production") {
       config.output.filename("assets/[name].[contenthash:8].js");
       config.output.chunkFilename("assets/[name].[contenthash:8].js");

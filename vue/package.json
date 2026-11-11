@@ -1,5 +1,5 @@
 {
-  "name": "leadscloser-chatbot",
+  "name": "dodo-ai-chat",
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
@@ -13,7 +13,8 @@
     "cypress:run:firefox": "cypress run --browser firefox",
     "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.js'",
     "test:email-capture": "cypress run --spec 'cypress/e2e/email-capture.cy.js'",
-    "test:exit-intent": "cypress run --spec 'cypress/e2e/exit-intent.cy.js'"
+    "test:exit-intent": "cypress run --spec 'cypress/e2e/exit-intent.cy.js'",
+    "test:forms-contract": "cypress run --spec 'cypress/e2e/forms-config.cy.js'"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",

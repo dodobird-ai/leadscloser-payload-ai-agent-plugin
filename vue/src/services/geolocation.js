@@ -2,6 +2,17 @@
  * Geolocation service to detect user's country based on IP address
  */
 
+// Map country codes to currency codes for auto-detection
+// Only EUR, USD, ZAR, and MUR are supported
+// All other countries (including UK, Switzerland, UAE) default to USD
+const COUNTRY_TO_CURRENCY = {
+  'MU': 'MUR',  // Mauritius
+  'FR': 'EUR', 'DE': 'EUR', 'BE': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR',
+  'AT': 'EUR', 'PT': 'EUR', 'IE': 'EUR', 'FI': 'EUR', 'GR': 'EUR', 'LU': 'EUR',
+  'ZA': 'ZAR',  // South Africa
+  // GB (UK), CH (Switzerland), AE (UAE), US, and all others -> USD (default fallback)
+};
+
 // Map country codes to nationality names that match the nationality element
 const COUNTRY_TO_NATIONALITY = {
   'MU': 'Mauritian',
@@ -219,6 +230,84 @@ class GeolocationService {
       console.warn('Failed to get default nationality:', error);
       return null;
     }
+  }
+
+  /**
+   * Get currency code from country code
+   * @param {string} countryCode - ISO 3166-1 alpha-2 country code
+   * @returns {string} Currency code (defaults to 'USD')
+   */
+  getCurrencyFromCountryCode(countryCode) {
+    if (!countryCode) return 'USD';
+    return COUNTRY_TO_CURRENCY[countryCode.toUpperCase()] || 'USD';
+  }
+
+  /**
+   * Get default currency based on user's IP location
+   * @returns {Promise<string>} Currency code (defaults to 'USD')
+   */
+  async getDefaultCurrency() {
+    try {
+      const countryCode = await this.getUserCountry();
+      return this.getCurrencyFromCountryCode(countryCode);
+    } catch (error) {
+      console.warn('Failed to get default currency:', error);
+      return 'USD';
+    }
+  }
+
+  /**
+   * Check if user is a foreigner (non-Mauritian) based on IP
+   * @returns {Promise<boolean>} true if foreigner (not in Mauritius), false if Mauritian
+   */
+  async getIsForeigner() {
+    try {
+      const countryCode = await this.getUserCountry();
+      // is_foreigner = true means NOT Mauritian (foreigner)
+      // is_foreigner = false means Mauritian
+      return countryCode !== 'MU';
+    } catch (error) {
+      console.warn('Failed to detect foreigner status:', error);
+      return true; // Default to foreigner if detection fails
+    }
+  }
+
+  /**
+   * Detect user's preferred language from browser settings
+   * @param {string[]} supportedLocales - List of supported locale codes (e.g., ['en', 'fr'])
+   * @returns {string} Language code (defaults to 'en')
+   */
+  detectLanguage(supportedLocales = ['en', 'fr']) {
+    try {
+      // Get browser language (e.g., 'en-US', 'fr-FR', 'fr')
+      const browserLang = navigator.language || navigator.userLanguage || 'en';
+      // Extract base language code (e.g., 'en' from 'en-US')
+      const baseLang = browserLang.split('-')[0].toLowerCase();
+      // Return if supported, otherwise default to 'en'
+      return supportedLocales.includes(baseLang) ? baseLang : 'en';
+    } catch (error) {
+      console.warn('Failed to detect browser language:', error);
+      return 'en';
+    }
+  }
+
+  /**
+   * Get all locale form defaults from IP and browser detection
+   * Used for silent form auto-population
+   * @param {string[]} supportedLocales - List of supported locale codes
+   * @returns {Promise<Object>} Object with language, currency, is_foreigner
+   */
+  async getLocaleDefaults(supportedLocales = ['en', 'fr']) {
+    const [currency, isForeigner] = await Promise.all([
+      this.getDefaultCurrency(),
+      this.getIsForeigner(),
+    ]);
+
+    return {
+      language: this.detectLanguage(supportedLocales),
+      currency,
+      is_foreigner: !isForeigner, // Note: is_foreigner=true means "Yes, I am Mauritian" in the form
+    };
   }
 
   /**

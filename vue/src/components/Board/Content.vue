@@ -51,6 +51,7 @@ export default {
   watch: {
     messagesDataForCurrentConversation: {
       handler: function () {
+        if (this.skipAutoScroll) return;
         this.$nextTick(() => {
           this.updateScroll();
         });
@@ -83,7 +84,10 @@ export default {
       'statusActive',
       'botParameters',
       'messagesDataForCurrentConversation'
-    ])
+    ]),
+    skipAutoScroll() {
+      return useBotStore().status.skipAutoScroll;
+    }
   },
   methods: {
     updateScroll(behavior = "smooth") {

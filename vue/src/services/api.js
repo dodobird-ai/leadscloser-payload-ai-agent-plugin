@@ -8,22 +8,13 @@ const backendBaseURL =
   "/" +
   process.env.VUE_APP_CHATBOT_BACKEND_ROUTE;
 
-// Where the host CMS exposes the calls it has to make on our behalf (auth,
-// Turnstile). WordPress supplies neither of these: it dispatches every proxy
-// call on ?action= against one admin-ajax.php, so the base is that script and
-// each route keeps an empty path (see buildRoutes below). A host with real
-// REST routes — the Payload plugin — sets both and gets one URL per route.
-const hostProxyBaseURL = window.bot_parameters?.proxyBaseURL;
-const hostProxyRoutePaths = window.bot_parameters?.proxyRoutePaths ?? {};
-
 const proxyBaseURL =
-  hostProxyBaseURL ??
-  (process.env.VUE_APP_DEV_AUTH_PROXY !== "false"
+  process.env.VUE_APP_DEV_AUTH_PROXY !== "false"
     ? process.env.VUE_APP_CHATBOT_API_HOSTNAME +
     "/" +
     process.env.VUE_APP_CHATBOT_BACKEND_ROUTE +
     "/proxy"
-    : window.location.origin + "/" + process.env.VUE_APP_CHATBOT_PROXY_ROUTE);
+    : window.location.origin + "/" + process.env.VUE_APP_CHATBOT_PROXY_ROUTE;
 
 const backendAxiosInstance = axios.create({
   baseURL: backendBaseURL,
@@ -123,12 +114,7 @@ const buildRoutes = (routes, instance, parentPath = "", rootKey = "") => {
     const isFetch = key.startsWith("FETCH_");
 
     const serviceKey = isFetch ? key.replace(/^FETCH_/, "") : key;
-    const hostProxyPath = isUnderProxy ? hostProxyRoutePaths[serviceKey] : undefined;
-    const path = isUnderProxy
-      ? hostProxyPath
-        ? `/${hostProxyPath}`
-        : ""
-      : `${parentPath}/${serviceKey}`;
+    const path = isUnderProxy ? "" : `${parentPath}/${serviceKey}`;
 
     if (isLeaf) {
       const ServiceClass = isFetch ? FetchApiService : AxiosApiService;
@@ -162,6 +148,8 @@ const $api = buildApis({
       },
       telemetry: {},
       action: {},
+      search: {},  // For /search/{search_id}?page=2&sort=price&direction=ASC
+      tenants: {},  // For /tenants/{tenant}/forms, use: $api.backend.tenants.makeRequest({ url: "{tenant}/forms" })
     },
   },
 });

@@ -23,6 +23,7 @@
       div(v-if="!botParameters.preview && statusChatMode")
         BoardInputSuggestion(
           :start-input-suggestions="startInputSuggestions"
+          :input-is-focused="inputIsFocused"
           @add-text-to-input="addTextToInputBox"
           @type-anything="inputFocus"
           @send-feedback="addFeedbackToInputBox"
@@ -32,6 +33,7 @@
           ref="boardAction"
           @msg-send="handleSendMessage"
           @start-new-chat="startNewChat"
+          @input-focus="handleInputFocusChange"
         )
       BoardDisclaimer
       PopupForm(v-if="!botParameters.preview" :class="[{ 'active': dynamicForms.show }, { 'chat': urlParams.fullscreen || statusSmallScreen }]")
@@ -45,7 +47,6 @@
     button.bot-bubble-btn(
       v-if="!statusActive && !statusSmallScreen"
       @click="botToggle"
-      aria-label="Open chatbot"
     )
       bubble-icon.bot-bubble-btn-icon(v-if="!botParameters.featuredImage")
       img.bot-bubble-btn-icon(v-else :src="botParameters.featuredImage" )
@@ -72,6 +73,7 @@ import BubbleIcon from "./Icons/Bubble.vue";
 import { useBotStore } from "@/store/bot";
 import { setGlobalLocale } from "@/i18n";
 import { geolocationService } from "@/services/geolocation";
+import { isSilentForm, autoSubmitSilentForm } from "@/hooks/formHooks";
 import BoardRecentChats from './Board/RecentChats.vue';
 import FloatingBubbles from './Board/FloatingBubbles.vue';
 import MobileFloatingInput from './Board/MobileFloatingInput.vue';
@@ -101,7 +103,8 @@ export default {
       pendingFloatingQuestion: null, // Store question to auto-submit after locale form
       isScrollLocked: false, // Track scroll lock state
       showExitIntentModal: false, // Control exit intent modal visibility
-      isMobileInputTyping: false // Track if user is typing in mobile input
+      isMobileInputTyping: false, // Track if user is typing in mobile input
+      inputIsFocused: false // Track if input field is focused
     };
   },
   computed: {
@@ -126,12 +129,14 @@ export default {
     },
     skipCaptcha() {
       return (
+        process.env.VUE_APP_SKIP_CAPTCHA !== "false" ||
+        process.env.NODE_ENV === "development" ||
         this.botParameters.preview
       );
     },
   },
   created() {
-    this.setCfStatus("verified", Boolean(this.skipCaptcha));
+    this.setCfStatus("verified", true);
 
     if (this.isOpen) {
       this.openDelay
@@ -209,6 +214,18 @@ export default {
         this.$nextTick(() => {
           this.handleSendMessage(this.pendingFloatingQuestion);
           this.pendingFloatingQuestion = null; // Clear the pending question
+        });
+      }
+    },
+    // Watch for silent form completion (localeForm.data gets set without show toggling)
+    'dynamicForms.localeForm.data'(newData, oldData) {
+      // Silent forms never show the popup - they auto-submit and set data directly
+      // If we have a pending question and data was just set (oldData was null/empty)
+      if (this.pendingFloatingQuestion && newData && !oldData) {
+        console.log('✅ Silent form completed (data set), auto-submitting question:', this.pendingFloatingQuestion);
+        this.$nextTick(() => {
+          this.handleSendMessage(this.pendingFloatingQuestion);
+          this.pendingFloatingQuestion = null;
         });
       }
     },
@@ -303,9 +320,42 @@ export default {
         }, 25000);
       }
     },
-    botStart() {
+    async botStart() {
       if (!this.statusChatMode) this.setStatusChatMode(true);
-      if (!this.messagesDataForCurrentConversation.length > 0) this.toggleDynamicForm('localeForm');
+
+      // Only show/process locale form if no messages exist yet AND form data not already set
+      const hasNoMessages = this.messagesDataForCurrentConversation.length === 0;
+      const hasNoLocaleData = !this.dynamicForms?.localeForm?.data;
+
+      if (hasNoMessages && hasNoLocaleData) {
+        // Wait a moment for forms config to load if schema not yet available
+        // This handles the race condition between fetchFormsConfig() and botStart()
+        let localeFormConfig = this.dynamicForms?.localeForm;
+
+        if (!localeFormConfig?.schema) {
+          // Forms config may still be loading, wait for it
+          console.log('[BotUI] Waiting for forms config to load...');
+          await new Promise(resolve => setTimeout(resolve, 800));
+          localeFormConfig = this.dynamicForms?.localeForm;
+        }
+
+        console.log('[BotUI] localeFormConfig:', {
+          hasSchema: !!localeFormConfig?.schema,
+          silent: localeFormConfig?.silent,
+          isSilent: isSilentForm(localeFormConfig)
+        });
+
+        if (isSilentForm(localeFormConfig)) {
+          // Auto-submit silent form with IP/browser detected values
+          console.log('[BotUI] Silent localeForm detected, auto-submitting...');
+          await autoSubmitSilentForm('localeForm', localeFormConfig, useBotStore());
+        } else if (localeFormConfig?.schema) {
+          // Show the form for user interaction (only if schema is available)
+          this.toggleDynamicForm('localeForm');
+        } else {
+          console.warn('[BotUI] No locale form schema available, skipping form');
+        }
+      }
     },
     async startNewChat() {
       if (this.messagesDataForCurrentConversation.length > 1 && !this.statusTyping) {
@@ -313,8 +363,21 @@ export default {
         // this.loading.clearConversation = true;
         await this.clearConversation();
         // this.loading.clearConversation = false;
-        this.toggleDynamicForm('localeForm');
-        this.botStart();
+
+        // Check if localeForm is silent (auto-submit) or needs to be shown
+        const localeFormConfig = this.dynamicForms?.localeForm;
+
+        if (isSilentForm(localeFormConfig)) {
+          // For silent forms, just call botStart which will auto-submit
+          await this.botStart();
+        } else if (localeFormConfig?.schema) {
+          // Show form then start bot (only if schema is available)
+          this.toggleDynamicForm('localeForm');
+          this.botStart();
+        } else {
+          // No schema available, just start bot
+          await this.botStart();
+        }
       }
     },
     async botToggle() {
@@ -456,6 +519,9 @@ export default {
     },
     inputFocus(value) {
       this.$refs.boardAction.inputFocus(value);
+    },
+    handleInputFocusChange(isFocused) {
+      this.inputIsFocused = isFocused;
     },
     addFeedbackToInputBox() {
       if (!this.$refs.boardAction.checkTextInputText("/feedback"))
