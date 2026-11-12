@@ -966,7 +966,7 @@ export const useBotStore = defineStore("bot", {
               }));
               message.metadata.items.push(...newItems);
               message.has_more = data.has_more;
-              message.total_count = data.total_count;
+              message.total_count = data.matched_item_count ?? data.total_count ?? null;
 
               // Track newly seen items
               this.addSeenItemIds(newItems.map((item) => item.item_id));

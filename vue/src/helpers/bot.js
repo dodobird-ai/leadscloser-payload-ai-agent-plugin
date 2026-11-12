@@ -145,7 +145,7 @@ function processMessage({ data, store, message_id, conversationId }) {
 
     // Paginated search fields
     search_id: data.search_id || null,
-    total_count: data.total_count || null,
+    total_count: data.matched_item_count ?? data.total_count ?? null,
     has_more: data.has_more || false,
   };
   store.setMessagesData(formatted);
